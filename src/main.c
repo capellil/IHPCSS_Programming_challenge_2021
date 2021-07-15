@@ -461,11 +461,10 @@ int main(int argc, char* argv[])
 	// Print a little summary
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
-		printf("The program took %f seconds in total.\n", acquisition_timer_total + processing_timer_total);
-		printf("\t- %f seconds on acquisition.\n", acquisition_timer_total);
-		printf("\t- %f seconds on processing\n", processing_timer_total);
-		printf("\t\t- %f seconds were spent on printing\n", printing_timer_total);
-		printf("\t\t- %d iterations were run\n", iteration_count);
+		printf("The program took %5.2f seconds in total and executed %d iterations.\n", acquisition_timer_total + processing_timer_total, iteration_count);
+		printf("\t- %5.2f seconds on acquisition.\n", acquisition_timer_total);
+		printf("\t- %5.2f seconds on processing\n", processing_timer_total - printing_timer_total);
+		printf("\t- %5.2f seconds on printing\n", printing_timer_total);
 	}
 
 	MPI_Finalize();
