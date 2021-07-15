@@ -17,6 +17,7 @@
 
 #define NEXT_PRINT_INCREASE 10
 #define MAX_PATH_LENGTH 256
+#define MAX_TIME 30.0
 
 /// Total number of rows in the data to process (no ghost cells)
 int ROWS = 0;
@@ -65,6 +66,8 @@ int main(int argc, char* argv[])
 	double printing_timer_total = 0.0;
 	double printing_timer_start = 0.0;
 	double printing_timer_end = 0.0;
+
+	double total_time_so_far = 0.0;
 
 	/////////////////////////////////////////////////////
 	// -- PREPARATION 2: COLLECT USEFUL INFORMATION -- //
@@ -243,7 +246,7 @@ int main(int argc, char* argv[])
 		processing_timer_start = MPI_Wtime();
 	}
 
-	while(processing_timer_total < 60.0)
+	while(total_time_so_far < MAX_TIME)
 	{
 		my_temperature_change = 0.0;
 
@@ -444,10 +447,11 @@ int main(int argc, char* argv[])
 		{
 			processing_timer_end = MPI_Wtime();
 			processing_timer_total = processing_timer_end - processing_timer_start;
+			total_time_so_far = acquisition_timer_total + processing_timer_total;
 		}
 
 		// Send total timer to everybody so they too can exit the loop if more than the allowed runtime has elapsed already
-		MPI_Bcast(&processing_timer_total, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_COMM_WORLD);
+		MPI_Bcast(&total_time_so_far, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_COMM_WORLD);
 	}
 
 	// We are done with the temperature arrays, we can free them.
