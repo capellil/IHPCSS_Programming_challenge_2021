@@ -360,7 +360,6 @@ int main(int argc, char* argv[])
 					if(j == my_rank)
 					{
 						// Copy locally my own temperature array in the global one
-						//memcpy(&global_temperatures[from_2d_index(j * ROWS_PER_MPI_PROCESS, 0)], &temperatures[from_2d_index(1, 0)], sizeof(double) * ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS);
 						for(int k = 0; k < ROWS_PER_MPI_PROCESS; k++)
 						{
 							for(int l = 0; l < COLUMNS_PER_MPI_PROCESS; l++)
