@@ -2,3 +2,4 @@ bin/
 outputs/
 datasets/
 report.txt
+error.txt
