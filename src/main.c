@@ -12,8 +12,7 @@
 #include <inttypes.h>
 #include <math.h>
 
-#define IHPCSS_PATH argv[1]
-#define INPUT_FILE argv[2]
+#define INPUT_FILE argv[1]
 #define OUTPUT_DIRECTORY "outputs"
 
 #define NEXT_PRINT_INCREASE 10
@@ -39,15 +38,14 @@ inline int from_2d_index(int row_index, int column_index)
 
 /**
  * @argv[0] Name of the program
- * @argv[1] path to the cloned Github repository
- * @argv[2] path to the dataset to load
+ * @argv[1] path to the dataset to load
  **/
 int main(int argc, char* argv[])
 {
 	// Check the arguments passed
-	if(argc != 3)
+	if(argc != 2)
 	{
-		printf("This program is meant to be 3 passed arguments, not %d, as follows: %s <path to IHPCSS folder> <path to dataset file>.\n", argc - 1, argv[1]);
+		printf("This program is meant to be passed 1 argument, not %d, as follows: %s <dataset file>.\n", argc - 1, argv[0]);
 		return EXIT_FAILURE;
 	}
 
@@ -120,7 +118,7 @@ int main(int argc, char* argv[])
 	{
 		// Open the file
 		char path[MAX_PATH_LENGTH];
-		snprintf(path, MAX_PATH_LENGTH, "%s/%s", IHPCSS_PATH, INPUT_FILE);
+		snprintf(path, MAX_PATH_LENGTH, "%s/%s", IHPCSS_FOLDER, INPUT_FILE);
 		FILE* f = fopen(INPUT_FILE, "r");
 		if(f == NULL)
 		{
@@ -443,7 +441,7 @@ int main(int argc, char* argv[])
 
 		// Open PPM file to store the corresponding image
 		char path[MAX_PATH_LENGTH];
-		snprintf(path, MAX_PATH_LENGTH, "%s/%s/%d.ppm", IHPCSS_PATH, OUTPUT_DIRECTORY, snapshot_iteration);
+		snprintf(path, MAX_PATH_LENGTH, "%s/%s/%d.ppm", IHPCSS_FOLDER, OUTPUT_DIRECTORY, snapshot_iteration);
 		FILE* ppm_file = fopen(path, "wb");
 		if(ppm_file == NULL)
 		{

@@ -8,9 +8,7 @@ DOC_DIRECTORY=doc
 DAT_DIRECTORY=datasets
 
 CC=mpicc
-CFLAGS=-O2 -Wall -Wextra -fopenmp -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE)
-
-IHPCSS_FOLDER=`pwd`
+CFLAGS=-O2 -Wall -Wextra -fopenmp -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE) -DIHPCSS_FOLDER=\"/jet/home/${USER}/IHPCSS_Programming_challenge_2021\"
 
 default: all
 
@@ -37,13 +35,13 @@ verify_modules:
 	fi
 
 $(BIN_DIRECTORY)/dataset_generator: $(SRC_DIRECTORY)/utils/dataset_generator.c
-	$(CC) -o $@ $^ $(CFLAGS) -DIHPCSS_FOLDER=\"$(IHPCSS_FOLDER)\"
+	$(CC) -o $@ $^ $(CFLAGS)
 
 $(BIN_DIRECTORY)/verify: $(SRC_DIRECTORY)/utils/verify.c
 	$(CC) -o $@ $^ $(CFLAGS)
 
-$(BIN_DIRECTORY)/main: $(SRC_DIRECTORY)/main.c
-	$(CC) -o $@ $^ $(CFLAGS)
+$(BIN_DIRECTORY)/main: $(SRC_DIRECTORY)/main.c 
+	$(CC) -o $@ $^ $(CFLAGS) 
 
 clean:
 	@if [ -d $(BIN_DIRECTORY) ]; then rm -rf $(BIN_DIRECTORY); fi;

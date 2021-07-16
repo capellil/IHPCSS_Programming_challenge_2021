@@ -20,4 +20,4 @@ mkdir -p outputs;
 rm -f outputs/*;
 
 # Run the binary
-mpirun -n ${SLURM_NTASKS} ./bin/main /jet/home/capellil/IHPCSS_Programming_challenge_2021 datasets/C_challenge.dat
+mpirun -n ${SLURM_NTASKS} ./bin/main ./datasets/C_challenge.dat
