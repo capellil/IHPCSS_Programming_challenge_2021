@@ -466,7 +466,7 @@ int main(int argc, char* argv[])
 		fwrite(colours, sizeof(uint8_t), ROWS * COLUMNS * 3, ppm_file);
 		fclose(ppm_file);
 
-		printf("Last snapshot generated at iteration %d.\n", next_print);
+		printf("Last snapshot generated at iteration %d.\n", snapshot_iteration);
 		free(colours);
 	}
 
