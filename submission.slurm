@@ -5,9 +5,7 @@
 #SBATCH --ntasks-per-node=128
 #SBATCH --job-name=IHPCSS
 #SBATCH --output=report.txt
-
-# Echo commands to stdout
-set -x
+#SBATCH --error=error.txt
 
 # OpenMP placement
 #export OMP_NUM_THREADS=32
