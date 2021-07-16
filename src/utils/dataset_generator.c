@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 	// If we reached this point, both the format and the dataset sizes are valid.
 	printf("IHPCSS folder is %s.\n", IHPCSS_FOLDER);
 
-	ROWS = (sample_size) ? 512 : 8192;
+	ROWS = (sample_size) ? 512 : 15360;
 	COLUMNS = ROWS;
 
 	double* temperatures = (double*)malloc(sizeof(double) * ROWS * COLUMNS);
