@@ -14,7 +14,7 @@ IHPCSS_FOLDER=`pwd`
 
 default: all
 
-all: verify_modules create_directories $(BIN_DIRECTORY)/file_generator $(BIN_DIRECTORY)/main
+all: verify_modules create_directories $(BIN_DIRECTORY)/dataset_generator $(BIN_DIRECTORY)/main
 
 create_directories:
 	@if [ ! -d $(BIN_DIRECTORY) ]; then mkdir $(BIN_DIRECTORY); fi; \
@@ -32,7 +32,7 @@ verify_modules:
 		exit -1; \
 	fi
 
-$(BIN_DIRECTORY)/file_generator: $(SRC_DIRECTORY)/utils/file_generator.c
+$(BIN_DIRECTORY)/dataset_generator: $(SRC_DIRECTORY)/utils/dataset_generator.c
 	$(CC) -o $@ $^ $(CFLAGS) -DIHPCSS_FOLDER=\"$(IHPCSS_FOLDER)\"
 
 $(BIN_DIRECTORY)/dat_to_ppm: $(SRC_DIRECTORY)/dat_to_ppm.c
