@@ -452,7 +452,10 @@ int main(int argc, char* argv[])
 		}
 
 		// Write header
-		fprintf(ppm_file, "P6 %d %d 255 ", ROWS, COLUMNS);
+		fprintf(ppm_file, "P6 %d %d 255\n", ROWS, COLUMNS);
+
+		// Write the programming language used, the dataset size and the iteration at which that snapshot was taken
+		fprintf(ppm_file, "# C %d\n", snapshot_iteration);
 
 		// Convert temperatures to colours
 		for(int j = 0; j < ROWS * COLUMNS * 3; j+=3)
