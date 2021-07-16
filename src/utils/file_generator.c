@@ -20,13 +20,15 @@ int from_2d_index(int i, int j);
  *
  * This program therefore accepts 2 parameters:
  * 1) The format to respect: either 'C' or 'FORTRAN'.
- * 2) The size of the dataset: etierh 'sample' or 'challenge'.
+ * 2) The size of the dataset: either 'sample' or 'challenge'.
  **/
 int main(int argc, char* argv[])
 {
 	if(argc != 3)
 	{
 		printf("This program is meant to be run with 2 arguments: %s <dataset format> <dataset size>.\n", argv[0]);
+		printf("\t- <dataset format> can be either 'C' or 'FORTRAN'.\n");
+		printf("\t- <dataset size> can be either 'sample' or 'challenge'.\n");
 		return EXIT_FAILURE;
 	}
 
