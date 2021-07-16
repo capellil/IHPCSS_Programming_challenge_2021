@@ -14,6 +14,7 @@
 
 #define IHPCSS_PATH argv[1]
 #define INPUT_FILE argv[2]
+#define OUTPUT_DIRECTORY "outputs"
 
 #define NEXT_PRINT_INCREASE 10
 #define MAX_PATH_LENGTH 256
@@ -392,7 +393,7 @@ int main(int argc, char* argv[])
 
 				// Open PPM file to store the corresponding image
 				char path[MAX_PATH_LENGTH];
-				snprintf(path, MAX_PATH_LENGTH, "%s/output/%d.ppm", IHPCSS_PATH, next_print);
+				snprintf(path, MAX_PATH_LENGTH, "%s/OUTPUT_DIRECTORY/%d.ppm", IHPCSS_PATH, next_print);
 				FILE* ppm_file = fopen(path, "wb");
 				if(ppm_file == NULL)
 				{
