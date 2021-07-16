@@ -146,11 +146,11 @@ int main(int argc, char* argv[])
 		COLUMNS_PER_MPI_PROCESS = COLUMNS;
 
 		// We can now allocate our array, including 2 extra rows for the halo (1 up, 1 down)
-		temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS);
+		temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS);
 		temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
 		
 		// Allocate the temporary buffer that will contain the data read from the file, before we send it to the corresponding MPI process
-		double* temp_buffer = (double*)malloc(sizeof(double) * ROWS_PER_MPI_PROCESS * COLUMNS);
+		double* temp_buffer = (double*)malloc(sizeof(double) * ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS);
 
 		// Start reading the n chunks from the file, one per MPI process.
 		int number_of_cells_read;
@@ -306,7 +306,6 @@ int main(int argc, char* argv[])
 		MPI_Recv(&temperatures_last[from_2d_index(0, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			
 		// Calculate the biggest temperature delta we've had
-		// Obstacle: this is a reduction in boomerang
 		if(my_rank != MASTER_PROCESS_RANK)
 		{
 			// Send my temperature delta to the master MPI process
