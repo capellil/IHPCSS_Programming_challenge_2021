@@ -241,6 +241,10 @@ int main(int argc, char* argv[])
 	double global_temperature_change;
 	/// Maximum temperature change for us
 	double my_temperature_change; 
+	/// The snapshots to write in files at the end
+	double** snapshots = NULL;
+	/// Number of snapshots already created
+	int snapshot_count = 0;
 
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
@@ -357,7 +361,21 @@ int main(int argc, char* argv[])
 			if(my_rank == MASTER_PROCESS_RANK)
 			{
 				printing_timer_start = MPI_Wtime();
-				double* global_temperatures = (double*)malloc(sizeof(double) * ROWS * COLUMNS);
+
+				// Get a snapshot
+				snapshot_count++;
+				if(snapshot_count == 1)
+				{
+					// It is our first snapshot
+					snapshots = (double**)malloc(sizeof(double*));
+				}
+				else
+				{
+					// It is at least our second snapshot
+					snapshots = (double**)realloc(snapshots, sizeof(double) * snapshot_count);
+				}
+
+				snapshots[snapshot_count-1] = (double*)malloc(sizeof(double) * ROWS * COLUMNS);
 
 				for(int j = 0; j < comm_size; j++)
 				{
@@ -368,13 +386,13 @@ int main(int argc, char* argv[])
 						{
 							for(int l = 0; l < COLUMNS_PER_MPI_PROCESS; l++)
 							{
-								global_temperatures[from_2d_index(j * ROWS_PER_MPI_PROCESS + k, l)] = temperatures[from_2d_index(k + 1, l)];
+								snapshots[snapshot_count-1][from_2d_index(j * ROWS_PER_MPI_PROCESS + k, l)] = temperatures[from_2d_index(k + 1, l)];
 							}
 						}
 					}
 					else
 					{
-						MPI_Recv(&global_temperatures[from_2d_index(j * ROWS_PER_MPI_PROCESS, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+						MPI_Recv(&snapshots[snapshot_count-1][from_2d_index(j * ROWS_PER_MPI_PROCESS, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 					}
 				}
 
@@ -383,43 +401,13 @@ int main(int argc, char* argv[])
 				{
 					for(int k = 0; k < COLUMNS; k++)
 					{
-						if(global_temperatures[from_2d_index(j,k)] > MAX_TEMPERATURE)
+						if(snapshots[snapshot_count-1][from_2d_index(j,k)] > MAX_TEMPERATURE)
 						{
-							printf("At iteration %d, the cell at [%d,%d] has a temperature of %f, which is beyond %f.\n", next_print, j, k, global_temperatures[from_2d_index(j,k)], MAX_TEMPERATURE);
+							printf("At iteration %d, the cell at [%d,%d] has a temperature of %f, which is beyond %f.\n", next_print, j, k, snapshots[snapshot_count-1][from_2d_index(j,k)], MAX_TEMPERATURE);
 							MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 						}
 					}
 				}
-
-				// Open PPM file to store the corresponding image
-				char path[MAX_PATH_LENGTH];
-				snprintf(path, MAX_PATH_LENGTH, "%s/OUTPUT_DIRECTORY/%d.ppm", IHPCSS_PATH, next_print);
-				FILE* ppm_file = fopen(path, "wb");
-				if(ppm_file == NULL)
-				{
-					printf("Could not create the PPM file %s.\n", path);
-					return EXIT_FAILURE;
-				}
-
-				// Write header
-				fprintf(ppm_file, "P6 %d %d 255 ", ROWS, COLUMNS);
-
-				// Convert temperatures to colours
-				uint8_t* colours = (uint8_t*)malloc(sizeof(uint8_t) * ROWS * COLUMNS * 3);
-				for(int j = 0; j < ROWS * COLUMNS * 3; j+=3)
-				{
-					colours[j  ] = (uint8_t)(global_temperatures[j/3] / MAX_TEMPERATURE * 255.0);
-					colours[j+1] = 0;
-					colours[j+2] = (uint8_t)((1.0 - (global_temperatures[j/3] / MAX_TEMPERATURE)) * 255.0);
-				}
-
-				// Write data
-				fwrite(colours, sizeof(uint8_t), ROWS * COLUMNS * 3, ppm_file);
-				fclose(ppm_file);
-
-				free(colours);
-
-				printf("PPM generated for iteration %d.\n", next_print);
 
 				printing_timer_end = MPI_Wtime();
 				printing_timer_total += printing_timer_end - printing_timer_start;
@@ -458,6 +446,58 @@ int main(int argc, char* argv[])
 	// We are done with the temperature arrays, we can free them.
 	free(temperatures);
 	free(temperatures_last);
+
+	//////////////////////////////////
+	// -- PART 3: DUMP SNAPSHOTS -- //
+	//////////////////////////////////
+	// NOTE: this part of the code is not timed.
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
+		int snapshot_index = 0;
+		next_print = 0;
+		uint8_t* colours = (uint8_t*)malloc(sizeof(uint8_t) * ROWS * COLUMNS * 3);
+		while(next_print < iteration_count)
+		{
+			// Open PPM file to store the corresponding image
+			char path[MAX_PATH_LENGTH];
+			snprintf(path, MAX_PATH_LENGTH, "%s/%s/%d.ppm", IHPCSS_PATH, OUTPUT_DIRECTORY, next_print);
+			FILE* ppm_file = fopen(path, "wb");
+			if(ppm_file == NULL)
+			{
+				printf("Could not create the PPM file %s.\n", path);
+				MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+			}
+
+			// Write header
+			fprintf(ppm_file, "P6 %d %d 255 ", ROWS, COLUMNS);
+
+			// Convert temperatures to colours
+			for(int j = 0; j < ROWS * COLUMNS * 3; j+=3)
+			{
+				colours[j  ] = (uint8_t)(snapshots[snapshot_index][j/3] / MAX_TEMPERATURE * 255.0);
+				colours[j+1] = 0;
+				colours[j+2] = (uint8_t)((1.0 - (snapshots[snapshot_index][j/3] / MAX_TEMPERATURE)) * 255.0);
+			}
+
+			// Write data
+			fwrite(colours, sizeof(uint8_t), ROWS * COLUMNS * 3, ppm_file);
+			fclose(ppm_file);
+
+			printf("PPM generated for iteration %d.\n", next_print);
+
+			// Calculate the next iteration at which a snapshot was made
+			if(next_print == 0)
+			{
+				next_print = 1;
+			}
+			else
+			{
+				next_print *= NEXT_PRINT_INCREASE;
+			}
+			snapshot_index++;
+		}
+		free(colours);
+	}
 
 	// Print a little summary
 	if(my_rank == MASTER_PROCESS_RANK)
