@@ -207,24 +207,19 @@ int main(int argc, char* argv[])
 		MPI_Recv(&temperatures_last[from_2d_index(1, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	}
 
+	// Copy the temperatures into the current iteration temperature as well
+	for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
+	{
+		for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
+		{
+			temperatures[from_2d_index(i,j)] = temperatures_last[from_2d_index(i,j)];
+		}
+	}
+
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
 		printf("Data acquisition complete.\n");
 	}
-
-	////////////////////////
-	// Initial halo swap //
-	//////////////////////
-	
-	// We now have our initial data but we are still missing the halos to begin the first iteration. Therefore, an initial halo swap is done.
-	// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-	MPI_Send(&temperatures_last[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
-	// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-	MPI_Recv(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS+1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-	MPI_Send(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
-	// Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-	MPI_Recv(&temperatures_last[from_2d_index(0, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	// Wait for everybody to receive their part before we can start processing
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -252,6 +247,19 @@ int main(int argc, char* argv[])
 	while(total_time_so_far < MAX_TIME)
 	{
 		my_temperature_change = 0.0;
+
+		// Exchange ghost cells
+		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
+		MPI_Send(&temperatures[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
+		
+		// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
+		MPI_Recv(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS+1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
+		MPI_Send(&temperatures[from_2d_index(ROWS_PER_MPI_PROCESS, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
+
+		// Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
+		MPI_Recv(&temperatures_last[from_2d_index(0, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 		// Calculating the average of neighbouring temperatures for each cell
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
@@ -291,20 +299,7 @@ int main(int argc, char* argv[])
 				my_temperature_change = fmax(fabs(temperatures[from_2d_index(i, j)] - temperatures_last[from_2d_index(i, j)]), my_temperature_change);
 			}
 		}
-
-		// Exchange ghost cells
-		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-		MPI_Send(&temperatures[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
-		
-		// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-		MPI_Recv(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS+1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-		// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-		MPI_Send(&temperatures[from_2d_index(ROWS_PER_MPI_PROCESS, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
-
-		// Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-		MPI_Recv(&temperatures_last[from_2d_index(0, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			
+	
 		// Calculate the biggest temperature delta we've had
 		if(my_rank != MASTER_PROCESS_RANK)
 		{
