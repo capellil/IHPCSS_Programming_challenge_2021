@@ -62,6 +62,11 @@ int main(int argc, char* argv[])
 	double processing_timer_start = 0.0;
 	double processing_timer_end = 0.0;
 
+	double halo_swap_timer_total = 0.0;
+	double halo_swap_timer_start = 0.0;
+	double halo_swap_timer_end = 0.0;
+
+
 	double printing_timer_total = 0.0;
 	double printing_timer_start = 0.0;
 	double printing_timer_end = 0.0;
@@ -109,9 +114,11 @@ int main(int argc, char* argv[])
 	acquisition_timer_start = MPI_Wtime();
 
 	/// Array that will contain my part chunk. It will include the 2 ghost rows (1 up, 1 down)
-	double* temperatures;
+	double* temperatures = NULL;
 	/// Temperatures from the previous iteration, same dimensions as the array above.
-	double* temperatures_last;
+	double* temperatures_last = NULL;
+	/// On master process only: contains all temperatures read from input file.
+	double* all_temperatures_from_file = NULL;
 
 	// The master MPI process will read a chunk from the file, send it to the corresponding MPI process and repeat until all chunks are read.
 	if(my_rank == MASTER_PROCESS_RANK)
@@ -150,44 +157,23 @@ int main(int argc, char* argv[])
 		temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
 		
 		// Allocate the temporary buffer that will contain the data read from the file, before we send it to the corresponding MPI process
-		double* temp_buffer = (double*)malloc(sizeof(double) * ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS);
+		all_temperatures_from_file = (double*)malloc(sizeof(double) * ROWS * COLUMNS);
+		if(all_temperatures_from_file == NULL)
+		{
+			printf("Failure in allocating the buffer to read the entire file at once.\n");
+			MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+		}
 
 		// Start reading the n chunks from the file, one per MPI process.
-		int number_of_cells_read;
-		for(int i = 0; i < comm_size; i++)
+		int number_of_cells_read = fread(all_temperatures_from_file, sizeof(double), ROWS * COLUMNS, f);
+		if(number_of_cells_read != ROWS * COLUMNS)
 		{
-			// Read a chunk and send it to the corresponding MPI process
-			number_of_cells_read = fread(temp_buffer, sizeof(double), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, f);
-			if(number_of_cells_read != ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS)
-			{
-				printf("%d should have been read from the file, but %d were read instead. This should not have happened, abort.\n", ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, number_of_cells_read); 
-				MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-			}
-
-			// Is this chunk meant for us or another MPI process?
-			if(i != my_rank)
-			{
-				// Chunk meant for another MPI process so we send it.
-				MPI_Send(temp_buffer, ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-			}
-			else
-			{
-				// This chunk is for us. We copy it into our temperature array.
-				for(int j = 1; j <= ROWS_PER_MPI_PROCESS; j++)
-				{
-					for(int k = 0; k < COLUMNS_PER_MPI_PROCESS; k++)
-					{
-						temperatures_last[from_2d_index(j,k)] = temp_buffer[from_2d_index(j-1,k)];
-					}
-				}
-			}
+			printf("%d should have been read from the file, but %d were read instead. This should not have happened, abort.\n", ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, number_of_cells_read); 
+			MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
 		}
 
 		// We are done with the file so we can close it
 		fclose(f);
-
-		// We are done with the temporary buffer so we can free it
-		free(temp_buffer);
 	}
 	else
 	{
@@ -202,7 +188,49 @@ int main(int argc, char* argv[])
 		// We can now allocate our array, including 2 extra rows for the halo (1 up, 1 down)
 		temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS);
 		temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
+	}
 
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
+		printf("File loading complete.\n");
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	// The master has all temperatures loaded and is ready so start sending them to all MPI processes.
+	////////////////////////////////////
+	/// -- CODE FROM HERE IS TIMED -- //
+	////////////////////////////////////
+	acquisition_timer_start = MPI_Wtime();
+
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
+		for(int i = 0; i < comm_size; i++)
+		{
+			// Is the i'th chunk meant for me, the master MPI process?
+			if(i != my_rank)
+			{
+				// No, so send the corresponding chunk to that MPI process.
+				MPI_Ssend(&all_temperatures_from_file[from_2d_index(i * ROWS_PER_MPI_PROCESS, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+			}
+			else
+			{
+				// Yes, let's copy it straight for the array in which we read the file into.
+				for(int j = 1; j <= ROWS_PER_MPI_PROCESS; j++)
+				{
+					for(int k = 0; k < COLUMNS_PER_MPI_PROCESS; k++)
+					{
+						temperatures_last[from_2d_index(j,k)] = all_temperatures_from_file[from_2d_index(j-1,k)];
+					}
+				}
+			}
+		}
+
+		// We are done with the buffer into which we had loaded the entire file content, so we can free it.
+		free(all_temperatures_from_file);
+	}
+	else
+	{
 		// Receive my chunk.
 		MPI_Recv(&temperatures_last[from_2d_index(1, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	}
@@ -249,17 +277,22 @@ int main(int argc, char* argv[])
 		my_temperature_change = 0.0;
 
 		// Exchange ghost cells
-		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-		MPI_Send(&temperatures[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
+		halo_swap_timer_start = MPI_Wtime();
+
+		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
+		MPI_Ssend(&temperatures[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
 		
 		// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
 		MPI_Recv(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS+1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-		// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Send will do nothing.
-		MPI_Send(&temperatures[from_2d_index(ROWS_PER_MPI_PROCESS, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
+		// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
+		MPI_Ssend(&temperatures[from_2d_index(ROWS_PER_MPI_PROCESS, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
 
 		// Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
 		MPI_Recv(&temperatures_last[from_2d_index(0, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		halo_swap_timer_end = MPI_Wtime();
+		halo_swap_timer_total += halo_swap_timer_end - halo_swap_timer_start;
 
 		// Calculating the average of neighbouring temperatures for each cell
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
@@ -304,7 +337,7 @@ int main(int argc, char* argv[])
 		if(my_rank != MASTER_PROCESS_RANK)
 		{
 			// Send my temperature delta to the master MPI process
-			MPI_Send(&my_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD);
+			MPI_Ssend(&my_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD);
 			
 			// Receive the total delta calculated by the MPI process based on all MPI processes delta
 			MPI_Recv(&global_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -333,7 +366,7 @@ int main(int argc, char* argv[])
 			{
 				if(j != my_rank)
 				{
-					MPI_Send(&global_temperature_change, 1, MPI_DOUBLE, j, 0, MPI_COMM_WORLD);
+					MPI_Ssend(&global_temperature_change, 1, MPI_DOUBLE, j, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
@@ -372,28 +405,16 @@ int main(int argc, char* argv[])
 					}
 				}
 
-				// Check that no temperature is above the max temperature
-				for(int j = 0; j < ROWS; j++)
-				{
-					for(int k = 0; k < COLUMNS; k++)
-					{
-						if(snapshot[from_2d_index(j,k)] > MAX_TEMPERATURE)
-						{
-							printf("At iteration %d, the cell at [%d,%d] has a temperature of %f, which is beyond %f.\n", next_print, j, k, snapshot[from_2d_index(j,k)], MAX_TEMPERATURE);
-							MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-						}
-					}
-				}
-
 				snapshot_iteration = iteration_count;
 
 				printing_timer_end = MPI_Wtime();
 				printing_timer_total += printing_timer_end - printing_timer_start;
+				printf("Total time so far at iteration %d: %f seconds.\n", iteration_count, total_time_so_far);
 			}
 			else
 			{
 				// Send my array to the master MPI process
-				MPI_Send(&temperatures[from_2d_index(1, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD); 
+				MPI_Ssend(&temperatures[from_2d_index(1, 0)], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD); 
 			}
 
 			// Delay next print by doubling time needed
@@ -470,7 +491,8 @@ int main(int argc, char* argv[])
 	{
 		printf("The program took %5.2f seconds in total and executed %d iterations.\n", acquisition_timer_total + processing_timer_total, iteration_count);
 		printf("\t- %5.2f seconds on acquisition.\n", acquisition_timer_total);
-		printf("\t- %5.2f seconds on processing\n", processing_timer_total - printing_timer_total);
+		printf("\t- %5.2f seconds on processing\n", processing_timer_total - printing_timer_total - halo_swap_timer_total);
+		printf("\t- %5.2f seconds on halo swap\n", halo_swap_timer_total);
 		printf("\t- %5.2f seconds on printing\n", printing_timer_total);
 	}
 
