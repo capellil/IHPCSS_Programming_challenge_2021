@@ -66,6 +66,9 @@ int main(int argc, char* argv[])
 	double halo_swap_timer_start = 0.0;
 	double halo_swap_timer_end = 0.0;
 
+	double pure_processing_timer_start = 0.0;
+	double pure_processing_timer_end = 0.0;
+	double pure_processing_timer_total = 0.0;
 
 	double printing_timer_total = 0.0;
 	double printing_timer_start = 0.0;
@@ -89,10 +92,6 @@ int main(int argc, char* argv[])
 	// Number of MPI processes in total, commonly called "comm_size" for "communicator size".
 	int comm_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-	if(my_rank == MASTER_PROCESS_RANK)
-	{
-		printf("There are %d MPI processes.\n", comm_size);
-	}
 
 	/// Rank of the first MPI process
 	const int FIRST_PROCESS_RANK = 0;
@@ -105,13 +104,22 @@ int main(int argc, char* argv[])
 	// Rank of my down neighbour if any
 	int down_neighbour_rank = (my_rank == LAST_PROCESS_RANK) ? MPI_PROC_NULL : my_rank + 1;
 
-	////////////////////////////////////
-	// -- PART 1: DATA ACQUISITION -- //
-	////////////////////////////////////
-	
-	// Wait for all MPI process and launch timer
-	MPI_Barrier(MPI_COMM_WORLD);
-	acquisition_timer_start = MPI_Wtime();
+	double report_start = MPI_Wtime();
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
+		report_start = MPI_Wtime();
+	}
+	report_placement();
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
+		printf("Took %f seconds to report placement.\n", MPI_Wtime() - report_start);
+		printf("There are %d MPI processes.\n", comm_size);
+		printf("There are %s OpenMP threads per MPI process.\n", getenv("OMP_NUM_THREADS"));
+	}
+
+	//////////////////////////////////////////////
+	// -- PREPARATION 3: LOAD DATA FROM FILE -- //
+	//////////////////////////////////////////////
 
 	/// Array that will contain my part chunk. It will include the 2 ghost rows (1 up, 1 down)
 	double* temperatures = NULL;
@@ -143,19 +151,22 @@ int main(int argc, char* argv[])
 		fread(&COLUMNS, sizeof(uint32_t), 1, f);
 
 		printf("Dimensions read: %u rows x %u columns.\n", ROWS, COLUMNS);
+	}
 
-		// Send those dimensions to everybody so they can initialise too.
-		MPI_Bcast(&ROWS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-		MPI_Bcast(&COLUMNS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+	// Send those dimensions to everybody so they can initialise too.
+	MPI_Bcast(&ROWS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&COLUMNS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
 
-		// Every MPI process receives 1/nth of the rows. The datasets have been designed to conveniently have a number of rows that is a multiple of the number of MPI processes.
-		ROWS_PER_MPI_PROCESS = ROWS / comm_size;
-		COLUMNS_PER_MPI_PROCESS = COLUMNS;
+	// Every MPI process receives 1/nth of the rows. The datasets have been designed to conveniently have a number of rows that is a multiple of the number of MPI processes.
+	ROWS_PER_MPI_PROCESS = ROWS / comm_size;
+	COLUMNS_PER_MPI_PROCESS = COLUMNS;
 
-		// We can now allocate our array, including 2 extra rows for the halo (1 up, 1 down)
-		temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS);
-		temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
-		
+	// We can now allocate our array, including 2 extra rows for the halo (1 up, 1 down)
+	temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS);
+	temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
+	
+	if(my_rank == MASTER_PROCESS_RANK)
+	{
 		// Allocate the temporary buffer that will contain the data read from the file, before we send it to the corresponding MPI process
 		all_temperatures_from_file = (double*)malloc(sizeof(double) * ROWS * COLUMNS);
 		if(all_temperatures_from_file == NULL)
@@ -174,33 +185,22 @@ int main(int argc, char* argv[])
 
 		// We are done with the file so we can close it
 		fclose(f);
-	}
-	else
-	{
-		// Receive dimensions from master
-		MPI_Bcast(&ROWS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-		MPI_Bcast(&COLUMNS, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-	
-		// Every MPI process is in charge of 1/nth of the rows. This has been designed to conveniently have a number of rows that is a multiple of the number of MPI processes.
-		ROWS_PER_MPI_PROCESS = ROWS / comm_size;
-		COLUMNS_PER_MPI_PROCESS = COLUMNS;
-		
-		// We can now allocate our array, including 2 extra rows for the halo (1 up, 1 down)
-		temperatures = (double*)malloc(sizeof(double) * (ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS);
-		temperatures_last = (double*)calloc((ROWS_PER_MPI_PROCESS + 2) * COLUMNS_PER_MPI_PROCESS, sizeof(double));
-	}
-
-	if(my_rank == MASTER_PROCESS_RANK)
-	{
 		printf("File loading complete.\n");
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	// The master has all temperatures loaded and is ready so start sending them to all MPI processes.
-	////////////////////////////////////
-	/// -- CODE FROM HERE IS TIMED -- //
-	////////////////////////////////////
+	///////////////////////////////////////////
+	//     ^                                 //
+	//    / \                                //
+	//   / | \    CODE FROM HERE IS TIMED    //
+	//  /  o  \                              //
+	// /_______\                             //
+	///////////////////////////////////////////
+	
+	// /////////////////////////////////////////////////////
+	// -- TASK 1: DISTRIBUTE DATA TO ALL MPI PROCESSES -- //
+	// /////////////////////////////////////////////////////
 	acquisition_timer_start = MPI_Wtime();
 
 	if(my_rank == MASTER_PROCESS_RANK)
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
 	acquisition_timer_total = acquisition_timer_end - acquisition_timer_start;
 	
 	/////////////////////////////
-	// PART 2: DATA PROCESSING //
+	// TASK 2: DATA PROCESSING //
 	/////////////////////////////
 	int iteration_count = 0;
 	/// Maximum temperature change observed across all MPI processes
@@ -276,12 +276,14 @@ int main(int argc, char* argv[])
 	{
 		my_temperature_change = 0.0;
 
-		// Exchange ghost cells
+		// ////////////////////////////////////////
+		// -- SUBTASK 1: EXCHANGE GHOST CELLS -- //
+		// ////////////////////////////////////////
 		halo_swap_timer_start = MPI_Wtime();
 
 		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
 		MPI_Ssend(&temperatures[from_2d_index(1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
-		
+
 		// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
 		MPI_Recv(&temperatures_last[from_2d_index(ROWS_PER_MPI_PROCESS+1, 0)], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -294,7 +296,10 @@ int main(int argc, char* argv[])
 		halo_swap_timer_end = MPI_Wtime();
 		halo_swap_timer_total += halo_swap_timer_end - halo_swap_timer_start;
 
-		// Calculating the average of neighbouring temperatures for each cell
+		/////////////////////////////////////////////
+		// -- SUBTASK 2: PROPAGATE TEMPERATURES -- //
+		/////////////////////////////////////////////
+		pure_processing_timer_start = MPI_Wtime();
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			// Process the cell at the first column, which has no left neighbour
@@ -324,7 +329,13 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		// Calculate the variation in temperatures
+		pure_processing_timer_end = MPI_Wtime();
+		pure_processing_timer_total += pure_processing_timer_end - pure_processing_timer_start;
+
+		///////////////////////////////////////////////////////
+		// -- SUBTASK 3: CALCULATE MAX TEMPERATURE CHANGE -- //
+		///////////////////////////////////////////////////////
+		my_temperature_change = 0.0;
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
@@ -333,7 +344,9 @@ int main(int argc, char* argv[])
 			}
 		}
 	
-		// Calculate the biggest temperature delta we've had
+		//////////////////////////////////////////////////////////
+		// -- SUBTASK 4: FIND MAX TEMPERATURE CHANGE OVERALL -- //
+		//////////////////////////////////////////////////////////
 		if(my_rank != MASTER_PROCESS_RANK)
 		{
 			// Send my temperature delta to the master MPI process
@@ -371,7 +384,9 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		// Copy current temperatures into last temperatures
+		//////////////////////////////////////////////////
+		// -- SUBTASK 5: UPDATE LAST ITERATION ARRAY -- //
+		//////////////////////////////////////////////////
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
@@ -380,12 +395,15 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		// Print progress
+		///////////////////////////////////
+		// -- SUBTASK 6: GET SNAPSHOT -- //
+		///////////////////////////////////
 		if(iteration_count == next_print)
 		{
 			if(my_rank == MASTER_PROCESS_RANK)
 			{
 				printing_timer_start = MPI_Wtime();
+
 				for(int j = 0; j < comm_size; j++)
 				{
 					if(j == my_rank)
@@ -428,8 +446,6 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		iteration_count++;
-
 		// Calculate the total time spent processing
 		if(my_rank == MASTER_PROCESS_RANK)
 		{
@@ -440,16 +456,26 @@ int main(int argc, char* argv[])
 
 		// Send total timer to everybody so they too can exit the loop if more than the allowed runtime has elapsed already
 		MPI_Bcast(&total_time_so_far, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_COMM_WORLD);
+
+		// Update the iteration number
+		iteration_count++;
 	}
 
 	// We are done with the temperature arrays, we can free them.
 	free(temperatures);
 	free(temperatures_last);
 
-	//////////////////////////////////
-	// -- PART 3: DUMP SNAPSHOTS -- //
-	//////////////////////////////////
-	// NOTE: this part of the code is not timed.
+	///////////////////////////////////////////////
+	//     ^                                     //
+	//    / \                                    //
+	//   / | \    CODE FROM HERE IS NOT TIMED    //
+	//  /  o  \                                  //
+	// /_______\                                 //
+	///////////////////////////////////////////////
+	
+	/////////////////////////////////////////
+	// -- FINALISATION 1: DUMP SNAPSHOT -- //
+	/////////////////////////////////////////
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
 		uint8_t* colours = (uint8_t*)malloc(sizeof(uint8_t) * ROWS * COLUMNS * 3);
@@ -486,12 +512,15 @@ int main(int argc, char* argv[])
 		free(colours);
 	}
 
-	// Print a little summary
+	/////////////////////////////////////////
+	// -- FINALISATION 2: PRINT SUMMARY -- //
+	/////////////////////////////////////////
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
 		printf("The program took %5.2f seconds in total and executed %d iterations.\n", acquisition_timer_total + processing_timer_total, iteration_count);
 		printf("\t- %5.2f seconds on acquisition.\n", acquisition_timer_total);
-		printf("\t- %5.2f seconds on processing\n", processing_timer_total - printing_timer_total - halo_swap_timer_total);
+		printf("\t- %5.2f seconds on iterations\n", processing_timer_total - printing_timer_total - halo_swap_timer_total - pure_processing_timer_total);
+		printf("\t- %5.2f seconds on pure processing.\n", pure_processing_timer_total);
 		printf("\t- %5.2f seconds on halo swap\n", halo_swap_timer_total);
 		printf("\t- %5.2f seconds on printing\n", printing_timer_total);
 	}
