@@ -127,6 +127,8 @@ int main(int argc, char* argv[])
 	double* temperatures_last = NULL;
 	/// On master process only: contains all temperatures read from input file.
 	double* all_temperatures_from_file = NULL;
+	/// File from which data will be read. ONLY used by the master MPI process.
+	FILE* f = NULL;
 
 	// The master MPI process will read a chunk from the file, send it to the corresponding MPI process and repeat until all chunks are read.
 	if(my_rank == MASTER_PROCESS_RANK)
@@ -134,7 +136,7 @@ int main(int argc, char* argv[])
 		// Open the file
 		char path[MAX_PATH_LENGTH];
 		snprintf(path, MAX_PATH_LENGTH, "%s/%s", IHPCSS_FOLDER, INPUT_FILE);
-		FILE* f = fopen(INPUT_FILE, "r");
+		f = fopen(INPUT_FILE, "r");
 		if(f == NULL)
 		{
 			// Could not open the file for a certain reason. Typically, the file does not exist.
