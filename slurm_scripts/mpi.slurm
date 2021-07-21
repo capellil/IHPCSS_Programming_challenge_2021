@@ -1,16 +1,17 @@
 #!/bin/bash
 #SBATCH --nodes=2
 #SBATCH --partition=RM
-#SBATCH --time=00:00:45
+#SBATCH --time=00:01:30
 #SBATCH --ntasks-per-node=128
+#SBATCH --cpus-per-task=1
 #SBATCH --job-name=IHPCSS
-#SBATCH --output=report.txt
+#SBATCH --output=report_%N_%j.txt
 #SBATCH --error=error.txt
 
 # OpenMP placement
-#export OMP_NUM_THREADS=32
-#export OMP_PROC_BIND=true
-#export OMP_PLACES=cores
+export OMP_NUM_THREADS=1
+export OMP_PROC_BIND=true
+export OMP_PLACES=cores
 
 cd /jet/home/capellil/IHPCSS_Programming_challenge_2021
 
@@ -20,4 +21,4 @@ mkdir -p outputs;
 rm -f outputs/*;
 
 # Run the binary
-mpirun -n ${SLURM_NTASKS} ./bin/main ./datasets/C_challenge.dat
+mpirun -np ${SLURM_NTASKS} --map-by core -bind-to core -report-bindings ./bin/main ./datasets/C_challenge.dat
