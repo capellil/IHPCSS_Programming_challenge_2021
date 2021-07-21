@@ -1,6 +1,6 @@
 MAX_TEMPERATURE=50.0
-C_DIRECTORY=C
-FORTRAN_DIRECTORY=FORTRAN
+C_DIRECTORY=c
+FORTRAN_DIRECTORY=f
 
 SRC_DIRECTORY=src
 BIN_DIRECTORY=bin
@@ -8,15 +8,16 @@ DOC_DIRECTORY=doc
 DAT_DIRECTORY=datasets
 
 CC=mpicc
-CFLAGS=-O2 -Wall -Wextra -fopenmp -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE) -DIHPCSS_FOLDER=\"/jet/home/${USER}/IHPCSS_Programming_challenge_2021\"
+CFLAGS=-O2 -Wall -Wextra -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE) -DIHPCSS_FOLDER=\"/jet/home/${USER}/IHPCSS_Programming_challenge_2021\"
 
 default: all
 
-all: verify_modules \
-     create_directories \
-	 $(BIN_DIRECTORY)/dataset_generator \
-	 $(BIN_DIRECTORY)/verify \
-	 $(BIN_DIRECTORY)/main
+all: create_directories \
+	 verify_modules \
+	 $(BIN_DIRECTORY)/c/cpu_big \
+	 $(BIN_DIRECTORY)/c/cpu_small \
+	 $(BIN_DIRECTORY)/c/gpu_big \
+	 $(BIN_DIRECTORY)/c/gpu_small
 
 create_directories:
 	@if [ ! -d $(BIN_DIRECTORY) ]; then mkdir $(BIN_DIRECTORY); fi; \
@@ -34,14 +35,23 @@ verify_modules:
 		exit -1; \
 	fi
 
-$(BIN_DIRECTORY)/dataset_generator: $(SRC_DIRECTORY)/utils/dataset_generator.c
+$(BIN_DIRECTORY)/dataset_generator: $(SRC_DIRECTORY)/c/dataset_generator.c
 	$(CC) -o $@ $^ $(CFLAGS)
 
-$(BIN_DIRECTORY)/verify: $(SRC_DIRECTORY)/utils/verify.c
+$(BIN_DIRECTORY)/verify: $(SRC_DIRECTORY)/c/verify.c
 	$(CC) -o $@ $^ $(CFLAGS)
 
-$(BIN_DIRECTORY)/main: $(SRC_DIRECTORY)/main.c 
-	$(CC) -o $@ $^ $(CFLAGS) 
+$(BIN_DIRECTORY)/c/cpu_big: $(SRC_DIRECTORY)/c/cpu.c
+	$(CC) -o $@ $^ $(CFLAGS) -DMPI_ONLY -DBIG -fopenmp
+
+$(BIN_DIRECTORY)/c/cpu_small: $(SRC_DIRECTORY)/c/cpu.c
+	$(CC) -o $@ $^ $(CFLAGS) -DMPI_ONLY -DSMALL -fopenmp
+
+$(BIN_DIRECTORY)/c/gpu_big: $(SRC_DIRECTORY)/c/gpu.c
+	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DMPI_OPENACC -DBIG
+
+$(BIN_DIRECTORY)/c/gpu_small: $(SRC_DIRECTORY)/c/gpu.c
+	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DMPI_OPENACC -DSMALL
 
 clean:
 	@if [ -d $(BIN_DIRECTORY) ]; then rm -rf $(BIN_DIRECTORY); fi;
