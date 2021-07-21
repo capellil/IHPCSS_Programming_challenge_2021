@@ -298,7 +298,7 @@ int main(int argc, char* argv[])
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			// Process the cell at the first column, which has no left neighbour
-			if(temperatures[from_2d_index(i, 0)])
+			if(temperatures[from_2d_index(i, 0)] != MAX_TEMPERATURE)
 			{
 				temperatures[from_2d_index(i, 0)] = 0.33 * (temperatures_last[from_2d_index(i-1, 0  )] +
 															temperatures_last[from_2d_index(i+1, 0  )] +
