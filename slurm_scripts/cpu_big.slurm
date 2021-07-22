@@ -7,6 +7,7 @@
 #SBATCH --job-name=IHPCSS
 #SBATCH --output=report_%N_%j.txt
 #SBATCH --error=error.txt
+#SBATCH --reservation=hybridIHPCSS
 
 # OpenMP placement
 export OMP_NUM_THREADS=64
