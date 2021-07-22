@@ -56,13 +56,11 @@ And of course, modify the file corresponding to the combination you want to work
 
 [Go back to table of contents](#table-of-contents)
 ### Submit to Bridges compute nodes ###
-(***Note**: Jobs submitted with this script use the reservation queue ```challenge```, which becomes active on Monday the 8th of July 2019 at 8:00pm local. No need to submit your jobs before that time then because they will be queued but will not be executed until the reservation queue becomes active.*)
+(***Note**: Jobs submitted with this script use the reservation queue ```challenge```, which becomes active on Thursday the 22th of July 2021 at 8:00pm local. No need to submit your jobs before that time then because they will be queued but will not be executed until the reservation queue becomes active.*)
 
-Similarly to the section "Run locally", a script has been written for you to easily submit your work to Bridges via SLURM: ```./submit.sh LANGUAGE IMPLEMENTATION SIZE OUTPUT_FILE```. The parameters LANGUAGE, IMPLEMENTATION and SIZE are identical to that passed to the ```run.sh``` script. The output file this time is no longer optional however, because you need a file to which redirect the output of your job.
+A script has been written for you to easily submit your work to Bridges via SLURM: ```./submit.sh LANGUAGE IMPLEMENTATION SIZE OUTPUT_FILE```. The parameters LANGUAGE, IMPLEMENTATION and SIZE. The output file this time is no longer optional however, because you need a file to which redirect the output of your job.
 
-How does it work? As you have probably seen, there is a ```slurm_scripts``` folder. It contains two SLURM submission scripts for each version (serial, OpenMP, MPI etc...): one for the small grid, one for the big grid. That allows each SLURM script to be tailored (number of nodes, type of nodes, walltime...) for the implementation and size demanded.
-
-If you want to create your own SLURM submission script, there is an additional one called ```general.slurm```, which contains all the commands you may want to use along with their description. You will also find in that submission script links that will lead you to PSC webpages containing more information about submission scripts.
+How does it work? As you have probably seen, there is a ```slurm_scripts``` folder. It contains two SLURM submission scripts for each version (OpenMP + MPI, OpenACC + MPI etc...): one for the small grid, one for the big grid. That allows each SLURM script to be tailored (number of nodes, type of nodes, walltime...) for the implementation and size demanded.
 
 [Go back to table of contents](#table-of-contents)
 ### Verification ###
