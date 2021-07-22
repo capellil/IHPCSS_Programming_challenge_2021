@@ -7,7 +7,8 @@
 #SBATCH --job-name=IHPCSS
 #SBATCH --output=report_%N_%j.txt
 #SBATCH --error=error.txt
-#SBATCH --gres=gpu:v100-16:8
+#SBATCH --gres=gpu:v100:8
+#SBATCH --reservation=gpuhybridIHPCSS
 
 # OpenMP placement
 export OMP_NUM_THREADS=1
