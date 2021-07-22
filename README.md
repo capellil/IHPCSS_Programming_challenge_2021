@@ -100,7 +100,7 @@ If you want your solution to be assessed, send an email **by Wednesday 28th of J
 [Go back to table of contents](#table-of-contents)
 ## Who do I talk to? ##
 
-* CAPELLI Ludovic
+* CAPELLI Ludovic: You can find my on the slack channel called "Programming challenge". (Click on the link that Weronika posted in the general slack channel, it will take you to the programming challenge channel so you can join. I have also posted my email address in that programming challenge channel.
 
 [Go back to table of contents](#table-of-contents)
 ## Acknowledgments ##
