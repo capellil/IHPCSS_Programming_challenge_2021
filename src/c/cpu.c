@@ -23,6 +23,8 @@
  **/
 int main(int argc, char* argv[])
 {
+	(void)argc;
+	(void)argv;
 	MPI_Init(NULL, NULL);
 
 	/////////////////////////////////////////////////////
