@@ -13,7 +13,5 @@ export OMP_NUM_THREADS=64
 export OMP_PROC_BIND=true
 export OMP_PLACES=cores
 
-cd /jet/home/capellil/IHPCSS_Programming_challenge_2021
-
 # Run the binary
-mpirun -np ${SLURM_NTASKS} --map-by socket -bind-to socket -report-bindings ./bin/${1}/mpi_openmp_big ./datasets/${1}/challenge.dat
+mpirun -np ${SLURM_NTASKS} --map-by socket -bind-to socket -report-bindings ./bin/${1}/cpu_big
