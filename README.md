@@ -41,7 +41,7 @@ Note that you are strongly encouraged to work on the source files provided inste
 
 [Go back to table of contents](#table-of-contents)
 ### Compile the source codes ###
-There is a makefile as you can see; it will compile all versions and generate the corresponding binaries in a folder ```bin```. OpenACC requires the PGI compiler, so we use the PGI compiler over all versions to keep things consistent. Make sure you load the right module with ```module load cuda/9.2 mpi/pgi_openmpi/19.4-nongpu``` before making, if you do not, the makefile will remind you.
+There is a makefile as you can see; it will compile all versions and generate the corresponding binaries in a folder ```bin```. To be compatible with OpenACC, we will use the moduel nvhpc, which can compile OpenACC and non-OpenACC versions so it will keep everything consistent. Make sure you load the right module with ```module load nvhpc``` before making, you can put it in your ".bashrc" for instance.
 
 What happens behind the scene?
 
@@ -75,7 +75,7 @@ The correctness of code will be evaluated based on the temperature change observ
 
 * Changing the compilation process (that is: using different compilers, compiler flags, external libraries etc...). The point in this challenge is not for you to read hundreds of pages of documentation to find an extra flag people may have missed.
 * Changing the running process; provided scripts already use a sensible configuration. Again, you only have a few days; the objective of the hybrid challenge is for you to play with the code, not spend hours defining the best MPI / OpenMP ratio for instance.
-* Changing the submission process; such as using more than 4 nodes for instance.
+* Changing the submission process; such as using more nodes for instance.
 * Changing the algorithm; yes it is a naive one but it exposes good characteristics for you to practice what you have learned in OpenMP, MPI and OpenACC.
 * Reducing the amount of work to be done such as ignoring the cells whose value will be zero during the entire simulation.
 * Removing the track_progress from the loop or changing the frequency at which it prints.
@@ -85,13 +85,13 @@ The correctness of code will be evaluated based on the temperature change observ
 
 [Go back to table of contents](#table-of-contents)
 ## Send your solution to the competition ##
-Participating to the hybrid challenge is for fun; to practice what you have learned during the IHPCSS. But if you want to see how far you got, you can send your solution for it to be assessed and evaluated as part of the competition, and know if you managed to develop the fastest code of your category (CPU or GPU). By the way, the team who will have developed the fastest CPU solution will win the trophy shown at the last slide in the IHPCSS_Coding_challenge_intro.pdf file, and identically for the fastest GPU solution of course.
+Participating to the hybrid challenge is for fun; to practice what you have learned during the IHPCSS. But if you want to see how far you got, you can send your solution for it to be assessed and evaluated as part of the competition, and know if you managed to develop the fastest code of your category (CPU or GPU).
 
-If you want your solution to be assessed, send an email **by Wednesday 28th of July 2021 11:59PM AOE** to CAPELLI Ludovic (email address in the ```IHPCSS_Coding_challenge_intro.pdf``` file; next to last slide) containing:
+If you want your solution to be assessed, send an email **by Wednesday 28th of July 2021 11:59PM AOE** to CAPELLI Ludovic (email address in the lack channel) containing:
 * The full name of each team member (no more than 3 members per team remember), because if your team wins we need to know who we should call on stage :)
 * The source file of the version you optimised. Typically, it will certainly mean:
-  * ```hybrid_cpu.c``` (or ```hybrid_cpu.F90```) if you focused on CPU using the MPI + OpenMP version. Possibly ```mpi.c``` (or mpi.F90) if you focused on CPU using the MPI only version instead.
-  * ```hybrid_gpu.c``` (or ```hybrid_gpu.F90```) if you focused on GPU using the MPI + OpenACC version.
+  * ```cpu.c``` (or ```cpu.F90```) if you focused on CPU using the MPI + OpenMP version.
+  * ```gpu.c``` (or ```gpu.F90```) if you focused on GPU using the MPI + OpenACC version.
 
 **Note**: there is no need to send the ```makefile``` / ```submit.sh``` scripts or else, send just the source file of the version you optimised. Your code will be compiled and run using the original ```makefile``` / ```submit.sh``` scripts provided, on the ```big``` grid. This way, every participant has their code compiled & run in strictly identical conditions.
 
@@ -99,8 +99,6 @@ If you want your solution to be assessed, send an email **by Wednesday 28th of J
 ## Who do I talk to? ##
 
 * CAPELLI Ludovic
-
-(My email addresses are in the ```IHPCSS_Coding_challenge_intro.pdf``` file; next to last slide. You can also find me on slack.)
 
 [Go back to table of contents](#table-of-contents)
 ## Acknowledgments ##
