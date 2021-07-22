@@ -22,14 +22,14 @@ PROGRAM main
     INTEGER, PARAMETER :: FIRST_PROCESS_RANK = 0
     !> Rank of the last MPI process
     INTEGER :: LAST_PROCESS_RANK
-    !> Rank of my up neighbour if any
-    INTEGER :: up_neighbour_rank
-    !> Rank of my down neighbour if any
-    INTEGER :: down_neighbour_rank
-    !> Array that will contain my part chunk. It will include the 2 ghost rows (1 up, 1 down)
-    REAL(8), DIMENSION(0:ROWS_PER_MPI_PROCESS+1,0:COLUMNS_PER_MPI_PROCESS-1) :: temperatures
+    !> Rank of my left neighbour if any
+    INTEGER :: left_neighbour_rank
+    !> Rank of my right neighbour if any
+    INTEGER :: right_neighbour_rank
+    !> Array that will contain my part chunk. It will include the 2 ghost rows (1 left, 1 right)
+    REAL(8), DIMENSION(0:ROWS_PER_MPI_PROCESS-1,0:COLUMNS_PER_MPI_PROCESS+1) :: temperatures
     !> Temperatures from the previous iteration, same dimensions as the array above.
-    REAL(8), DIMENSION(0:ROWS_PER_MPI_PROCESS+1,0:COLUMNS_PER_MPI_PROCESS-1) :: temperatures_last
+    REAL(8), DIMENSION(0:ROWS_PER_MPI_PROCESS-1,0:COLUMNS_PER_MPI_PROCESS+1) :: temperatures_last
     !> On master process only: contains all temperatures read from input file.
     REAL(8), DIMENSION(0:ROWS-1,0:COLUMNS-1) :: all_temperatures
     !> Will contain the entire time elapsed in the timed portion of the code
@@ -65,9 +65,9 @@ PROGRAM main
     CALL MPI_Comm_size(MPI_COMM_WORLD, comm_size, ierr)
     LAST_PROCESS_RANK = comm_size - 1
 
-    up_neighbour_rank = merge(MPI_PROC_NULL, my_rank - 1, my_rank .EQ. FIRST_PROCESS_RANK)
+    left_neighbour_rank = merge(MPI_PROC_NULL, my_rank - 1, my_rank .EQ. FIRST_PROCESS_RANK)
     
-    down_neighbour_rank = merge(MPI_PROC_NULL, my_rank + 1, my_rank .EQ. LAST_PROCESS_RANK)
+    right_neighbour_rank = merge(MPI_PROC_NULL, my_rank + 1, my_rank .EQ. LAST_PROCESS_RANK)
 
     ! ////////////////////////////////////////////////////////////////////
     ! ! -- PREPARATION 2: INITIALISE TEMPERATURES ON MASTER PROCESS -- //
@@ -98,26 +98,26 @@ PROGRAM main
             ! Is the i'th chunk meant for me, the master MPI process?
             IF (i .NE. my_rank) THEN
                 ! No, so send the corresponding chunk to that MPI process.
-                CALL MPI_Ssend(all_temperatures(i * ROWS_PER_MPI_PROCESS,0), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, &
+                CALL MPI_Ssend(all_temperatures(0,i * COLUMNS_PER_MPI_PROCESS), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, &
                                MPI_DOUBLE_PRECISION, i, 0, MPI_COMM_WORLD, ierr)
             ELSE
                 ! Yes, let's copy it straight for the array in which we read the file into.
-                DO j = 1, ROWS_PER_MPI_PROCESS
-                    DO k = 0, COLUMNS_PER_MPI_PROCESS-1
-                        temperatures_last(j,k) = all_temperatures(j-1,k)
+                DO k = 1, COLUMNS_PER_MPI_PROCESS
+                    DO j = 0, ROWS_PER_MPI_PROCESS - 1
+                        temperatures_last(j,k) = all_temperatures(j,k-1)
                     ENDDO
                 ENDDO
             END IF
         ENDDO
     ELSE
         ! Receive my chunk.
-        CALL MPI_Recv(temperatures_last(1,0), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, MASTER_PROCESS_RANK, &
+        CALL MPI_Recv(temperatures_last(0,1), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, MASTER_PROCESS_RANK, &
                       MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
     END IF
 
     ! Copy the temperatures into the current iteration temperature as well
-    DO i = 1, ROWS_PER_MPI_PROCESS
-        DO j = 1, COLUMNS_PER_MPI_PROCESS - 1
+    DO j = 1, COLUMNS_PER_MPI_PROCESS
+        DO i = 0, ROWS_PER_MPI_PROCESS - 1
             temperatures(i,j) = temperatures_last(i,j)
         ENDDO
     ENDDO
@@ -134,39 +134,37 @@ PROGRAM main
     ! /////////////////////////////
 
     DO WHILE (total_time_so_far .LT. MAX_TIME)
-        my_temperature_change = 0.0
-
         ! ////////////////////////////////////////
         ! -- SUBTASK 1: EXCHANGE GHOST CELLS -- //
         ! ////////////////////////////////////////
 
-        ! Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
-        CALL MPI_Ssend(temperatures(1,0), COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, up_neighbour_rank, 0, MPI_COMM_WORLD, ierr)
+        ! Send data to up neighbour for its ghost cells. If my left_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
+        CALL MPI_Ssend(temperatures(0,1), ROWS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, left_neighbour_rank, 0, MPI_COMM_WORLD, ierr)
 
-        ! Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-        CALL MPI_Recv(temperatures_last(ROWS_PER_MPI_PROCESS+1,0), COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, down_neighbour_rank, &
+        ! Receive data from down neighbour to fill our ghost cells. If my right_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
+        CALL MPI_Recv(temperatures_last(0,COLUMNS_PER_MPI_PROCESS+1), ROWS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, right_neighbour_rank, &
                       MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
 
-        ! Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
-        CALL MPI_Ssend(temperatures(ROWS_PER_MPI_PROCESS,0), COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, down_neighbour_rank, 0, &
+        ! Send data to down neighbour for its ghost cells. If my right_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
+        CALL MPI_Ssend(temperatures(0, COLUMNS_PER_MPI_PROCESS), ROWS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, right_neighbour_rank, 0,&
                        MPI_COMM_WORLD, ierr)
 
-        ! Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-        CALL MPI_Recv(temperatures_last(0,0), COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &
+        ! Receive data from up neighbour to fill our ghost cells. If my left_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
+        CALL MPI_Recv(temperatures_last(0,0), ROWS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, left_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &
                       MPI_STATUS_IGNORE, ierr)
 
         ! /////////////////////////////////////////////
         ! // -- SUBTASK 2: PROPAGATE TEMPERATURES -- //
         ! /////////////////////////////////////////////
-        DO i = 1, ROWS_PER_MPI_PROCESS
-            ! Process the cell at the first column, which has no left neighbour
-            IF (temperatures(i,0) .NE. MAX_TEMPERATURE) THEN
-                temperatures(i,0) = (temperatures_last(i-1,0) + &
-                                     temperatures_last(i+1,0) + &
-                                     temperatures_last(i  ,1)) / 3.0
+        DO j = 1, COLUMNS_PER_MPI_PROCESS 
+            ! Process the cell at the first row, which has no up neighbour
+            IF (temperatures(0,j) .NE. MAX_TEMPERATURE) THEN
+                temperatures(0,j) = (temperatures_last(0,j-1) + &
+                                     temperatures_last(0,j+1) + &
+                                     temperatures_last(1,j  )) / 3.0
             END IF
             ! Process all cells between the first and last columns excluded, which each has both left and right neighbours
-            DO j = 1, COLUMNS_PER_MPI_PROCESS - 2
+            DO i = 1, ROWS_PER_MPI_PROCESS - 2
                 IF (temperatures(i,j) .NE. MAX_TEMPERATURE) THEN
                     temperatures(i,j) = 0.25 * (temperatures_last(i-1,j  ) + &
                                                 temperatures_last(i+1,j  ) + &
@@ -174,11 +172,11 @@ PROGRAM main
                                                 temperatures_last(i  ,j+1))
                 END IF
             END DO
-            ! Process the cell at the last column, which has no right neighbour
-            IF (temperatures(i,COLUMNS_PER_MPI_PROCESS - 1) .NE. MAX_TEMPERATURE) THEN
-                temperatures(i,COLUMNS_PER_MPI_PROCESS - 1) = (temperatures_last(i-1,COLUMNS_PER_MPI_PROCESS - 1) + &
-                                                                temperatures_last(i+1,COLUMNS_PER_MPI_PROCESS - 1) + &
-                                                                temperatures_last(i  ,COLUMNS_PER_MPI_PROCESS - 2)) / 3.0
+            ! Process the cell at the bottom row, which has no down neighbour
+            IF (temperatures(ROWS_PER_MPI_PROCESS-1,j) .NE. MAX_TEMPERATURE) THEN
+                temperatures(ROWS_PER_MPI_PROCESS-1,j) = (temperatures_last(ROWS_PER_MPI_PROCESS-1, j - 1) + &
+                                                          temperatures_last(ROWS_PER_MPI_PROCESS-1, j + 1) + &
+                                                          temperatures_last(ROWS_PER_MPI_PROCESS-2, j)) / 3.0
             END IF
         END DO
 
@@ -186,9 +184,9 @@ PROGRAM main
         ! // -- SUBTASK 3: CALCULATE MAX TEMPERATURE CHANGE -- //
         ! ///////////////////////////////////////////////////////
         my_temperature_change = 0.0
-        DO i = 1, ROWS_PER_MPI_PROCESS
-            DO j = 0, COLUMNS_PER_MPI_PROCESS-1
-                my_temperature_change = max(abs(temperatures(i,j) - temperatures_last(i,j)), my_temperature_change)
+        DO j = 1, COLUMNS_PER_MPI_PROCESS
+            DO i = 0, ROWS_PER_MPI_PROCESS - 1
+                 my_temperature_change = max(abs(temperatures(i,j) - temperatures_last(i,j)), my_temperature_change)
             END DO
         END DO
 
@@ -227,8 +225,8 @@ PROGRAM main
         ! //////////////////////////////////////////////////
         ! // -- SUBTASK 5: UPDATE LAST ITERATION ARRAY -- //
         ! //////////////////////////////////////////////////
-        DO i = 1, ROWS_PER_MPI_PROCESS
-            DO j = 0, COLUMNS_PER_MPI_PROCESS-1
+        DO j = 1, COLUMNS_PER_MPI_PROCESS
+            DO i = 0, ROWS_PER_MPI_PROCESS - 1
                 temperatures_last(i,j) = temperatures(i,j)
             END DO
         END DO
@@ -247,15 +245,15 @@ PROGRAM main
                             END DO
                         END DO
                     ELSE
-                        CALL MPI_Recv(snapshot(j * ROWS_PER_MPI_PROCESS,0), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, &
+                        CALL MPI_Recv(snapshot(0, j * COLUMNS_PER_MPI_PROCESS), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, &
                                       MPI_DOUBLE_PRECISION, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
                     END IF
                 END DO
 
-                WRITE(*,'(A,I0,A,F20.18)') 'Iteration ', iteration_count, ': ', global_temperature_change
+                WRITE(*,'(A,I0,A,F22.18)') 'Iteration ', iteration_count, ': ', global_temperature_change
             ELSE
                 ! Send my array to the master MPI process
-                CALL MPI_Ssend(temperatures(1,0), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, MASTER_PROCESS_RANK, &
+                CALL MPI_Ssend(temperatures(0,1), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, MASTER_PROCESS_RANK, &
                                0, MPI_COMM_WORLD, ierr) 
             END IF
         END IF
