@@ -18,13 +18,14 @@ default: all
 all: create_directories \
 	 verify_modules \
 	 $(BIN_DIRECTORY)/c/cpu_big \
-	 $(BIN_DIRECTORY)/c/cpu_small \
-	 $(BIN_DIRECTORY)/c/gpu_big \
-	 $(BIN_DIRECTORY)/c/gpu_small \
-	 $(BIN_DIRECTORY)/f/cpu_big \
-	 $(BIN_DIRECTORY)/f/cpu_small \
-	 $(BIN_DIRECTORY)/f/gpu_big \
-	 $(BIN_DIRECTORY)/f/gpu_small
+	 $(BIN_DIRECTORY)/c/cpu_small
+# \
+	 # $(BIN_DIRECTORY)/c/gpu_big \
+	 # $(BIN_DIRECTORY)/c/gpu_small \
+	 # $(BIN_DIRECTORY)/f/cpu_big \
+	 # $(BIN_DIRECTORY)/f/cpu_small \
+	 # $(BIN_DIRECTORY)/f/gpu_big \
+	 # $(BIN_DIRECTORY)/f/gpu_small
 
 create_directories:
 	@if [ ! -d $(BIN_DIRECTORY) ]; then mkdir $(BIN_DIRECTORY); fi; \
@@ -48,23 +49,23 @@ $(BIN_DIRECTORY)/c/cpu_big: $(SRC_DIRECTORY)/c/cpu.c
 $(BIN_DIRECTORY)/c/cpu_small: $(SRC_DIRECTORY)/c/cpu.c
 	$(CC) -o $@ $^ $(CFLAGS) -fopenmp -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=128 -DCOLUMNS_PER_MPI_PROCESS=512 -DSMALL
 
-$(BIN_DIRECTORY)/c/gpu_big: $(SRC_DIRECTORY)/c/gpu.c
-	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=1920 -DCOLUMNS_PER_MPI_PROCESS=15360 -DBIG 
+# $(BIN_DIRECTORY)/c/gpu_big: $(SRC_DIRECTORY)/c/gpu.c
+# 	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=1920 -DCOLUMNS_PER_MPI_PROCESS=15360 -DBIG 
 
-$(BIN_DIRECTORY)/c/gpu_small: $(SRC_DIRECTORY)/c/gpu.c
-	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=256 -DCOLUMNS_PER_MPI_PROCESS=512
+# $(BIN_DIRECTORY)/c/gpu_small: $(SRC_DIRECTORY)/c/gpu.c
+# 	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=256 -DCOLUMNS_PER_MPI_PROCESS=512
 
-$(BIN_DIRECTORY)/f/cpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90 
-	$(CF) -o $@ $^ $(FFLAGS) -fopenmp  -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=15360 -DCOLUMNS_PER_MPI_PROCESS=3840 -DBIG
+# $(BIN_DIRECTORY)/f/cpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90 
+# 	$(CF) -o $@ $^ $(FFLAGS) -fopenmp  -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=15360 -DCOLUMNS_PER_MPI_PROCESS=3840 -DBIG
 
-$(BIN_DIRECTORY)/f/cpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90
-	$(CF) -o $@ $^ $(FFLAGS) -fopenmp -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=512 -DCOLUMNS_PER_MPI_PROCESS=128 -DSMALL
+# $(BIN_DIRECTORY)/f/cpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90
+# 	$(CF) -o $@ $^ $(FFLAGS) -fopenmp -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=512 -DCOLUMNS_PER_MPI_PROCESS=128 -DSMALL
 
-$(BIN_DIRECTORY)/f/gpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
-	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=15360 -DCOLUMNS_PER_MPI_PROCESS=1920 -DBIG 
+# $(BIN_DIRECTORY)/f/gpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
+# 	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=15360 -DCOLUMNS_PER_MPI_PROCESS=1920 -DBIG 
 
-$(BIN_DIRECTORY)/f/gpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
-	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=512 -DCOLUMNS_PER_MPI_PROCESS=256
+# $(BIN_DIRECTORY)/f/gpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
+# 	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=512 -DCOLUMNS_PER_MPI_PROCESS=256
 
 clean:
 	@if [ -d $(BIN_DIRECTORY) ]; then rm -rf $(BIN_DIRECTORY); fi;

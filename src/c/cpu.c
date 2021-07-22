@@ -63,6 +63,9 @@ int main(int argc, char* argv[])
 	/// On master process only: contains all temperatures read from input file.
 	double all_temperatures[ROWS][COLUMNS];
 
+        // to handle async communication during the simulation, one from up, the other one from down
+        MPI_Request requests[2];
+
 	// The master MPI process will read a chunk from the file, send it to the corresponding MPI process and repeat until all chunks are read.
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
@@ -85,51 +88,54 @@ int main(int argc, char* argv[])
 	double total_time_so_far = 0.0;
 	double start_time = MPI_Wtime();
 
-	if(my_rank == MASTER_PROCESS_RANK)
-	{
-		for(int i = 0; i < comm_size; i++)
-		{
-			// Is the i'th chunk meant for me, the master MPI process?
-			if(i != my_rank)
-			{
-				// No, so send the corresponding chunk to that MPI process.
-				MPI_Ssend(&all_temperatures[i * ROWS_PER_MPI_PROCESS][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-			}
-			else
-			{
-				// Yes, let's copy it straight for the array in which we read the file into.
-				for(int j = 1; j <= ROWS_PER_MPI_PROCESS; j++)
-				{
-					for(int k = 0; k < COLUMNS_PER_MPI_PROCESS; k++)
-					{
-						temperatures_last[j][k] = all_temperatures[j-1][k];
-					}
-				}
-			}
-		}
-	}
-	else
-	{
-		// Receive my chunk.
-		MPI_Recv(&temperatures_last[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	}
+        if(my_rank == MASTER_PROCESS_RANK)
+        {
+          for(int i = 0; i < comm_size; i++)
+          {
+            // Is the i'th chunk meant for me, the master MPI process?
+            if(i != my_rank)
+            {
+              // No, so send the corresponding chunk to that MPI process.
+              MPI_Send(&all_temperatures[i * ROWS_PER_MPI_PROCESS][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+            }
+            else
+            {
+              // Yes, let's copy it straight for the array in which we read the file into.
+              for(int j = 1; j <= ROWS_PER_MPI_PROCESS; j++)
+              {
+                for(int k = 0; k < COLUMNS_PER_MPI_PROCESS; k++)
+                {
+                  temperatures_last[j][k] = all_temperatures[j-1][k];
+                }
+              }
+            }
+          }
+        }
+        else
+        {
+          // Receive my chunk.
+          MPI_Irecv(&temperatures_last[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, &requests[0]);
+        }
 
-	// Copy the temperatures into the current iteration temperature as well
-	for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
-	{
-		for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
-		{
-			temperatures[i][j] = temperatures_last[i][j];
-		}
-	}
+        if(my_rank != MASTER_PROCESS_RANK)
+        {
+          MPI_Wait(&requests[0], MPI_STATUS_IGNORE);
+        }
 
-	if(my_rank == MASTER_PROCESS_RANK)
-	{
-		printf("Data acquisition complete.\n");
-	}
+        // Copy the temperatures into the current iteration temperature as well
+        for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
+        {
+          for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
+          {
+            temperatures[i][j] = temperatures_last[i][j];
+          }
+        }
 
-	// Wait for everybody to receive their part before we can start processing
-	MPI_Barrier(MPI_COMM_WORLD);
+        if(my_rank == MASTER_PROCESS_RANK)
+        {
+          printf("Data acquisition complete.\n");
+        }
+
 	
 	/////////////////////////////
 	// TASK 2: DATA PROCESSING //
@@ -150,17 +156,15 @@ int main(int argc, char* argv[])
 		// -- SUBTASK 1: EXCHANGE GHOST CELLS -- //
 		// ////////////////////////////////////////
 
-		// Send data to up neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
-		MPI_Ssend(&temperatures[1][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
+                /* Receive data from up/down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing. */
+                MPI_Irecv(&temperatures_last[ROWS_PER_MPI_PROCESS+1][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &requests[0]);
+                MPI_Irecv(&temperatures_last[0][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, &requests[1]);
 
-		// Receive data from down neighbour to fill our ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-		MPI_Recv(&temperatures_last[ROWS_PER_MPI_PROCESS+1][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                // Send data to up/down neighbour for its ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
+                MPI_Send(&temperatures[1][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, 0, MPI_COMM_WORLD);
+                MPI_Send(&temperatures[ROWS_PER_MPI_PROCESS][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
 
-		// Send data to down neighbour for its ghost cells. If my down_neighbour_rank is MPI_PROC_NULL, this MPI_Ssend will do nothing.
-		MPI_Ssend(&temperatures[ROWS_PER_MPI_PROCESS][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, down_neighbour_rank, 0, MPI_COMM_WORLD);
-
-		// Receive data from up neighbour to fill our ghost cells. If my up_neighbour_rank is MPI_PROC_NULL, this MPI_Recv will do nothing.
-		MPI_Recv(&temperatures_last[0][0], COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, up_neighbour_rank, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Waitall(2, &requests, MPI_STATUS_IGNORE);                
 
 		/////////////////////////////////////////////
 		// -- SUBTASK 2: PROPAGATE TEMPERATURES -- //
@@ -209,43 +213,9 @@ int main(int argc, char* argv[])
 		//////////////////////////////////////////////////////////
 		// -- SUBTASK 4: FIND MAX TEMPERATURE CHANGE OVERALL -- //
 		//////////////////////////////////////////////////////////
-		if(my_rank != MASTER_PROCESS_RANK)
-		{
-			// Send my temperature delta to the master MPI process
-			MPI_Ssend(&my_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD);
-			
-			// Receive the total delta calculated by the MPI process based on all MPI processes delta
-			MPI_Recv(&global_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		}
-		else
-		{
-			// Initialise the temperature change to mine
-			global_temperature_change = my_temperature_change;
+                MPI_Allreduce(&my_temperature_change, &global_temperature_change, 1, MPI_DOUBLE,  MPI_MAX, MPI_COMM_WORLD);
 
-			// Pick highest temperature change observed
-			for(int j = 0; j < comm_size; j++)
-			{
-				if(j != my_rank)
-				{
-					double subtotal;
-					MPI_Recv(&subtotal, 1, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					if(subtotal > global_temperature_change)
-					{
-						global_temperature_change = subtotal;
-					}
-				}
-			}
-
-			// Send delta back to all MPI processes
-			for(int j = 0; j < comm_size; j++)
-			{
-				if(j != my_rank)
-				{
-					MPI_Ssend(&global_temperature_change, 1, MPI_DOUBLE, j, 0, MPI_COMM_WORLD);
-				}
-			}
-		}
-
+                
 		//////////////////////////////////////////////////
 		// -- SUBTASK 5: UPDATE LAST ITERATION ARRAY -- //
 		//////////////////////////////////////////////////
@@ -262,34 +232,14 @@ int main(int argc, char* argv[])
 		///////////////////////////////////
 		if(iteration_count % SNAPSHOT_INTERVAL == 0)
 		{
-			if(my_rank == MASTER_PROCESS_RANK)
-			{
-				for(int j = 0; j < comm_size; j++)
-				{
-					if(j == my_rank)
-					{
-						// Copy locally my own temperature array in the global one
-						for(int k = 0; k < ROWS_PER_MPI_PROCESS; k++)
-						{
-							for(int l = 0; l < COLUMNS_PER_MPI_PROCESS; l++)
-							{
-								snapshot[j * ROWS_PER_MPI_PROCESS + k][l] = temperatures[k + 1][l];
-							}
-						}
-					}
-					else
-					{
-						MPI_Recv(&snapshot[j * ROWS_PER_MPI_PROCESS][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					}
-				}
+                  MPI_Gather(&temperatures[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, &snapshot,
+                             ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE,  MASTER_PROCESS_RANK, MPI_COMM_WORLD);
 
-				printf("Iteration %d: %.18f\n", iteration_count, global_temperature_change);
-			}
-			else
-			{
-				// Send my array to the master MPI process
-				MPI_Ssend(&temperatures[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD); 
-			}
+                  if(my_rank == MASTER_PROCESS_RANK)
+                  {
+                    printf("Iteration %d: %.18f\n", iteration_count, global_temperature_change);
+                  }
+                        
 		}
 
 		// Calculate the total time spent processing
