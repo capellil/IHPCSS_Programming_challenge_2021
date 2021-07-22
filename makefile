@@ -35,12 +35,6 @@ verify_modules:
 		exit -1; \
 	fi
 
-$(BIN_DIRECTORY)/dataset_generator: $(SRC_DIRECTORY)/c/dataset_generator.c
-	$(CC) -o $@ $^ $(CFLAGS)
-
-$(BIN_DIRECTORY)/verify: $(SRC_DIRECTORY)/c/verify.c
-	$(CC) -o $@ $^ $(CFLAGS)
-
 $(BIN_DIRECTORY)/c/cpu_big: $(SRC_DIRECTORY)/c/cpu.c
 	$(CC) -o $@ $^ $(CFLAGS) -DMPI_ONLY -DBIG -fopenmp
 
