@@ -14,5 +14,5 @@ export OMP_PROC_BIND=true
 export OMP_PLACES=cores
 
 # Run the binary
-module load nvhpc
+module load mvapich2/2.3.5-gcc8.3.1
 mpirun -np ${SLURM_NTASKS} --map-by socket -bind-to socket -report-bindings ./bin/${1}/cpu_big
