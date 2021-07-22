@@ -51,13 +51,13 @@ echo "  - LANGUAGE = 'c' | 'f'";
 echo "  - IMPLEMENTATION = 'cpu' | 'gpu'";
 echo "  - SIZE = 'small' | 'big'";
 echo "  - OUTPUT_FILE = the path to the file in which store the output.";
-echo "  - Example: to submit the C serial version on the small grid, submit './submit.sh C serial small'.";
+echo "  - Example: to submit the C CPU version on the small dataset, submit './submit.sh c cpu small'.";
 echo "";
 
 #################################
 # Check the number of arguments #
 #################################
-if [ "$#" -eq "3" ]; then
+if [ "$#" -eq "4" ]; then
 	echo_success "Correct number of arguments received."
 else
 	echo_failure "Incorrect number of arguments received; $# passed whereas 4 are expected. Please refer to the quick help above."
@@ -113,4 +113,4 @@ else
 	echo_failure "The corresponding submission script \"${slurm_script_to_submit}\" has not been found."
 fi
 
-sbatch ${slurm_script_to_submit} $1
+sbatch ${slurm_script_to_submit} $1 $4
