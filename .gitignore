@@ -3,3 +3,5 @@ outputs/
 datasets/
 report_*.txt
 error.txt
+*.o
+*.mod
