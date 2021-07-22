@@ -44,7 +44,7 @@ Note that you are strongly encouraged to work on the source files provided inste
 Due to some surprises from the nvhpc module, there are now two scripts available; one that will happily compile all CPU codes, and one for GPU codes.
 - ```./compile_cpu_versions``` for the CPU ones
 - ```./compile_gpu_versions``` for the GPU ones
-- 
+ 
 If the right module is not loaded, it will complain and will give you the command to issue before trying again.
 
 What happens behind the scene?
