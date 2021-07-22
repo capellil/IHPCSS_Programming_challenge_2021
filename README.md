@@ -41,7 +41,10 @@ Note that you are strongly encouraged to work on the source files provided inste
 
 [Go back to table of contents](#table-of-contents)
 ### Compile the source codes ###
-There is a makefile as you can see; it will compile all versions and generate the corresponding binaries in a folder ```bin```. To be compatible with OpenACC, we will use the moduel nvhpc, which can compile OpenACC and non-OpenACC versions so it will keep everything consistent. Make sure you load the right module with ```module load nvhpc``` before making, you can put it in your ".bashrc" for instance.
+Due to some surprises from the nvhpc module, there are now two scripts available; one that will happily compile all CPU codes, and one for GPU codes.
+- ./compile_cpu_versions for the CPU ones
+- ./compile_gpu_versions for the GPU ones
+If the right module is not loaded, it will complain and will give you the command to issue before trying again.
 
 What happens behind the scene?
 
