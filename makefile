@@ -10,6 +10,9 @@ DAT_DIRECTORY=datasets
 CC=mpicc
 CFLAGS=-O2 -Wall -Wextra -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE) -DIHPCSS_FOLDER=\"/jet/home/${USER}/IHPCSS_Programming_challenge_2021\"
 
+CF=mpif90
+FFLAGS=-O2 -mcmodel=medium -DMAX_TEMPERATURE=$(MAX_TEMPERATURE)
+
 default: all
 
 all: create_directories \
@@ -17,7 +20,11 @@ all: create_directories \
 	 $(BIN_DIRECTORY)/c/cpu_big \
 	 $(BIN_DIRECTORY)/c/cpu_small \
 	 $(BIN_DIRECTORY)/c/gpu_big \
-	 $(BIN_DIRECTORY)/c/gpu_small
+	 $(BIN_DIRECTORY)/c/gpu_small \
+	 $(BIN_DIRECTORY)/f/cpu_big \
+	 $(BIN_DIRECTORY)/f/cpu_small \
+	 $(BIN_DIRECTORY)/f/gpu_big \
+	 $(BIN_DIRECTORY)/f/gpu_small
 
 create_directories:
 	@if [ ! -d $(BIN_DIRECTORY) ]; then mkdir $(BIN_DIRECTORY); fi; \
@@ -46,6 +53,18 @@ $(BIN_DIRECTORY)/c/gpu_big: $(SRC_DIRECTORY)/c/gpu.c
 
 $(BIN_DIRECTORY)/c/gpu_small: $(SRC_DIRECTORY)/c/gpu.c
 	$(CC) -acc -Minfo=accel -o $@ $^ $(CFLAGS) -DMPI_OPENACC -DSMALL
+
+$(BIN_DIRECTORY)/f/cpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90 
+	$(CF) -o $@ $^ $(FFLAGS) -fopenmp -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=3840 -DCOLUMNS_PER_MPI_PROCESS=15360
+
+$(BIN_DIRECTORY)/f/cpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/cpu.F90
+	$(CF) -o $@ $^ $(FFLAGS) -fopenmp -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=128 -DCOLUMNS_PER_MPI_PROCESS=128
+
+$(BIN_DIRECTORY)/f/gpu_big: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
+	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DBIG -DROWS=15360 -DCOLUMNS=15360 -DROWS_PER_MPI_PROCESS=1920 -DCOLUMNS_PER_MPI_PROCESS=15360
+
+$(BIN_DIRECTORY)/f/gpu_small: $(SRC_DIRECTORY)/f/util.F90 $(SRC_DIRECTORY)/f/gpu.F90
+	$(CF) -acc -Minfo=accel -o $@ $^ $(FFLAGS) -DSMALL -DROWS=512 -DCOLUMNS=512 -DROWS_PER_MPI_PROCESS=256 -DCOLUMNS_PER_MPI_PROCESS=512
 
 clean:
 	@if [ -d $(BIN_DIRECTORY) ]; then rm -rf $(BIN_DIRECTORY); fi;
