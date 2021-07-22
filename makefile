@@ -13,7 +13,15 @@ CFLAGS=-O2 -Wall -Wextra -D_GNU_SOURCE -lm -DMAX_TEMPERATURE=$(MAX_TEMPERATURE) 
 CF=mpif90
 FFLAGS=-O2 -mcmodel=medium -DMAX_TEMPERATURE=$(MAX_TEMPERATURE)
 
-default: all
+default: warning all
+
+warning:
+	@clear; \
+	echo -e "  ^"; \
+	echo -e " /!\ You are issuing a 'make' manually!"; \
+	echo -e "/___\\"; \
+	echo -e "\n"; \
+	echo -e "The problem being we cannot change which module you have loaded from within the makefile, and that turns out to be a problem -> GPU versions require the nvhpc module. However, it seems to generate bugs for the CPU versions so we will use an mvapich module instead. Therefore, in order to make sure you have the right module loaded in, there are two scripts; compile_cpu_versions.sh and compile_gpu_versions.sh that have been written. When you execute them, they will check you have the right module loaded for the type of code (CPU or GPU) you are trying to compile :)"
 
 all: all_cpu \
 	 all_gpu
