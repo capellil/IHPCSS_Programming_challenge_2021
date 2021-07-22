@@ -1,12 +1,12 @@
 MODULE util
     IMPLICIT NONE
 
-    #IFDEF BIG
-        REAL(8), PARAMETER :: MAX_TIME = 30.0
-    #ELSE  
-        REAL(8), PARAMETER :: MAX_TIME = 5.0
-    #ENDIF
-    INTEGER, PARAMETER :: SNAPSHOT_INTERVAL = 50
+#ifdef BIG
+    REAL(8), PARAMETER :: MAX_TIME = 30.0
+#else 
+    REAL(8), PARAMETER :: MAX_TIME = 5.0
+#endif
+    INTEGER, PARAMETER :: SNAPSHOT_INTERVAL = 25
 
 CONTAINS
 
@@ -19,7 +19,7 @@ CONTAINS
         INTEGER, PARAMETER :: THICKNESS = ROWS / 2
         INTEGER :: i
         INTEGER :: j
-        #ifdef BIG
+#ifdef BIG
             DO i = 0, ROWS - 1
                 DO j = 0, COLUMNS -1
                     IF (i .GE. (MID_ROWS - THICKNESS/2) .AND. i .LE. (MID_ROWS + THICKNESS/2) .AND. &
@@ -30,12 +30,12 @@ CONTAINS
                     END IF
                 END DO
            END DO
-        #else
+#else
             DO i = 0, ROWS-1
                 DO j = 0, COLUMNS-1
                     temperatures(i,j) = merge(MAX_TEMPERATURE, 0.0, MOD(i, 100) .EQ. 0)
                 END DO
             END DO
-        #endif
+#endif
     END SUBROUTINE
 END MODULE
