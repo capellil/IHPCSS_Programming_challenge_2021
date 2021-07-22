@@ -4,7 +4,7 @@
 #ifdef BIG
 	#define MAX_TIME 30.0
 #elif SMALL
-	#define MAX_TIME 1.0
+	#define MAX_TIME 5.0
 #else
 	#error No dataset size passed during compilation, BIG or SMALL must be defined.
 #endif

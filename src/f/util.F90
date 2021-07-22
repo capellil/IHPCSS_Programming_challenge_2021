@@ -4,7 +4,7 @@ MODULE util
     #IFDEF BIG
         REAL(8), PARAMETER :: MAX_TIME = 30.0
     #ELSE  
-        REAL(8), PARAMETER :: MAX_TIME = 1.0
+        REAL(8), PARAMETER :: MAX_TIME = 5.0
     #ENDIF
     INTEGER, PARAMETER :: SNAPSHOT_INTERVAL = 50
 
@@ -13,7 +13,7 @@ CONTAINS
     SUBROUTINE initialise_temperatures(temperatures)
         IMPLICIT NONE
 
-        REAL(8), DIMENSION(0:ROWS+1, 0:COLUMNS-1) :: temperatures
+        REAL(8), DIMENSION(0:ROWS-1, 0:COLUMNS-1) :: temperatures
         INTEGER, PARAMETER :: MID_ROWS = ROWS / 2
         INTEGER, PARAMETER :: MID_COLUMNS = COLUMNS / 2
         INTEGER, PARAMETER :: THICKNESS = ROWS / 2
@@ -33,7 +33,7 @@ CONTAINS
         #else
             DO i = 0, ROWS-1
                 DO j = 0, COLUMNS-1
-                    temperatures(i,j) = merge(MAX_TEMPERATURE, 0.0, MOD(j, 100) .EQ. 0)
+                    temperatures(i,j) = merge(MAX_TEMPERATURE, 0.0, MOD(i, 100) .EQ. 0)
                 END DO
             END DO
         #endif
