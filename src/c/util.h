@@ -3,31 +3,8 @@
 
 #ifdef BIG
 	#define MAX_TIME 30.0
-	#define ROWS 15360
-	#define COLUMNS 15360
-
-	#ifdef MPI_ONLY
-		// 15360 rows divided by 256 MPI processes = 60 rows. With 2 rows for halo, 1 up and 1 down, which gives 60 + 2 = 62 rows per MPI process.
-		#define ROWS_PER_MPI_PROCESS 62 
-		#define COLUMNS_PER_MPI_PROCESS 15360
-	#elif MPI_OPENMP
-		// 15360 rows divided by 2x2 MPI processes = 3840 rows. With 2 rows for halo, 1 up and 1 down, which gives 3840 + 2 = 3842 rows per MPI process.
-		#define ROWS_PER_MPI_PROCESS 3840 
-		#define COLUMNS_PER_MPI_PROCESS 15360
-	#elif MPI_OPENACC
-		#define ROWS_PER_MPI_PROCESS 1922
-		#define COLUMNS_PER_MPI_PROCESS 15360
-	#else
-		#error No configuration found, MPI_ONLY, MPI_OPENMP or MPI_OPENACC must be defined.
-	#endif
 #elif SMALL
 	#define MAX_TIME 1.0
-	#define ROWS 512
-	#define COLUMNS 512
-
-	// 512 rows divided by 4 MPI processes = 128 rows. With 2 rows for halo, 1 up and 1 down, which gives 128 + 2 = 130 rows per MPI process.
-	#define ROWS_PER_MPI_PROCESS 130
-	#define COLUMNS_PER_MPI_PROCESS 512
 #else
 	#error No dataset size passed during compilation, BIG or SMALL must be defined.
 #endif
