@@ -66,7 +66,9 @@ If you want to create your own SLURM submission script, there is an additional o
 
 [Go back to table of contents](#table-of-contents)
 ### Verification ###
-For the small
+The correctness of code will be evaluated based on the temperature change observed at a certain iteration:
+- For the small C CPU version, iteration 10,000 should yield: 0.001330995453471928
+- For the small F CPU version, iteration 10,000 should yield: 0.001330995453464823
 
 [Go back to table of contents](#table-of-contents)
 ## What kind of optimisations are not allowed? ##
