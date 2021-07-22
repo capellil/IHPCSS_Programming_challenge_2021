@@ -29,7 +29,7 @@ The challenge is that you have 30 seconds to process as many iterations as possi
 * You can for both tracks:
   * Classic parallel programming: MPI + OpenMP
   * Accelerator: MPI + OpenACC
-* Each of these is available
+* Each of these is available in C and FORTRAN 90
 * It provides you with a pre-setup experimental protocol; it makes sure contestants compete in the same conditions and allows to compare experiments fairly.
 
 [Go back to table of contents](#table-of-contents)
