@@ -16,4 +16,4 @@ export OMP_PLACES=cores
 # Run the binary
 module unload nvhpc
 module load mvapich2/2.3.5-gcc8.3.1;
-mpirun -np ${SLURM_NTASKS} --map-by core -bind-to core -report-bindings ./bin/${1}/cpu_small
+mpirun -np ${SLURM_NTASKS} --map-by core -bind-to core ./bin/${1}/cpu_small
