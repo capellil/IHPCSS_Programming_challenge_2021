@@ -21,7 +21,15 @@ warning:
 	echo -e " /!\ You are issuing a 'make' manually!"; \
 	echo -e "/___\\"; \
 	echo -e "\n"; \
-	echo -e "The problem being we cannot change which module you have loaded from within the makefile, and that turns out to be a problem -> GPU versions require the nvhpc module. However, it seems to generate bugs for the CPU versions so we will use an mvapich module instead. Therefore, in order to make sure you have the right module loaded in, there are two scripts; compile_cpu_versions.sh and compile_gpu_versions.sh that have been written. When you execute them, they will check you have the right module loaded for the type of code (CPU or GPU) you are trying to compile :)"
+	echo -e "SITUATION"; \
+	echo -e "  - For CPU codes, we need the module mvapich2/2.3.5-gcc8.3.1"; \
+	echo -e "  - For GPU codes, we need the module nvhpc\n"; \
+	echo -e "PROBLEM"; \
+	echo -e "  If you do not have the right module loaded before making, we cannot change it from within the makefile and having the wrong module may result in bugs after compilation.\n"; \
+	echo -e "SOLUTION"; \
+	echo -e "  We made 2 scripts that check the module loaded before making. And if the module needed is not loaded, it complains and does not launch the make :)"; \
+	echo -e "    - For CPU codes: ./compile_cpu_versions.sh"; \
+	echo -e "    - For GPU codes: ./compile_gpu_versions.sh";
 
 all: all_cpu \
 	 all_gpu
