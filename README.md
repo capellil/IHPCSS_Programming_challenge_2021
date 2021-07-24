@@ -103,9 +103,9 @@ Examples:
 ## Send your solution to the competition ##
 Participating to the hybrid challenge is for fun; to practice what you have learned during the IHPCSS. But if you want to see how far you got, you can send your solution for it to be assessed and evaluated as part of the competition, and know if you managed to develop the fastest code of your category (CPU or GPU).
 
-If you want your solution to be assessed, send an email **by Wednesday 28th of July 2021 11:59PM AOE** to CAPELLI Ludovic (email address in the lack channel) containing:
-* The full name of each team member (no more than 3 members per team remember), because if your team wins we need to know who we should call on stage :)
-* The source file of the version you optimised. Typically, it will certainly mean:
+If you want your solution to be assessed, send an email **by Wednesday 28th of July 2021 11:59PM AOE** to CAPELLI Ludovic (email address in the slack channel) containing:
+* The full name of each team member (typically no more than 3 members per team so that small teams means everybody participates), because if your team wins we need to know whom congratulate :)
+* The source file of the version you optimised. Typically, it will mean:
   * ```cpu.c``` (or ```cpu.F90```) if you focused on CPU using the MPI + OpenMP version.
   * ```gpu.c``` (or ```gpu.F90```) if you focused on GPU using the MPI + OpenACC version.
 
