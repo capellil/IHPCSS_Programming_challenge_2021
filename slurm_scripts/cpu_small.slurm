@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=4
 #SBATCH --job-name=IHPCSS
-#SBATCH --output=report_%N_%j.txt
+#SBATCH --output=error.txt
 #SBATCH --error=error.txt
 
 # OpenMP placement

@@ -250,7 +250,7 @@ PROGRAM main
                     END IF
                 END DO
 
-                WRITE(*,'(A,I0,A,F22.18)') 'Iteration ', iteration_count, ': ', global_temperature_change
+                WRITE(*,'(A,I0,A,F0.18)') 'Iteration ', iteration_count, ': ', global_temperature_change
             ELSE
                 ! Send my array to the master MPI process
                 CALL MPI_Ssend(temperatures(0,1), ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE_PRECISION, MASTER_PROCESS_RANK, &
@@ -282,7 +282,7 @@ PROGRAM main
     ! // -- FINALISATION 2: PRINT SUMMARY -- //
     ! /////////////////////////////////////////
     IF (my_rank == MASTER_PROCESS_RANK) THEN
-        WRITE(*,'(A,F5.2,A,I0,A)') 'The program took ', total_time_so_far, ' seconds in total and executed ', iteration_count, &
+        WRITE(*,'(A,F0.2,A,I0,A)') 'The program took ', total_time_so_far, ' seconds in total and executed ', iteration_count, &
                                    ' iterations.'
     END IF
 

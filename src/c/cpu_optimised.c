@@ -167,6 +167,7 @@ int main(int argc, char* argv[])
 		/////////////////////////////////////////////
 		// -- SUBTASK 2: PROPAGATE TEMPERATURES -- //
 		/////////////////////////////////////////////
+		#pragma omp parallel for schedule(dynamic) reduction(max:my_temperature_change)
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			// Process the cell at the first column, which has no left neighbour
@@ -175,6 +176,7 @@ int main(int argc, char* argv[])
 				temperatures[i][0] = (temperatures_last[i-1][0] +
 									  temperatures_last[i+1][0] +
 									  temperatures_last[i  ][1]) / 3.0;
+				my_temperature_change = fmax(fabs(temperatures[i][0] - temperatures_last[i][0]), my_temperature_change);
 			}
 			// Process all cells between the first and last columns excluded, which each has both left and right neighbours
 			for(int j = 1; j < COLUMNS_PER_MPI_PROCESS - 1; j++)
@@ -185,6 +187,7 @@ int main(int argc, char* argv[])
 												 temperatures_last[i+1][j  ] +
 												 temperatures_last[i  ][j-1] +
 												 temperatures_last[i  ][j+1]);
+					my_temperature_change = fmax(fabs(temperatures[i][j] - temperatures_last[i][j]), my_temperature_change);
 				}
 			}
 			// Process the cell at the last column, which has no right neighbour
@@ -193,64 +196,29 @@ int main(int argc, char* argv[])
 				temperatures[i][COLUMNS_PER_MPI_PROCESS - 1] = (temperatures_last[i-1][COLUMNS_PER_MPI_PROCESS - 1] +
 															    temperatures_last[i+1][COLUMNS_PER_MPI_PROCESS - 1] +
 															    temperatures_last[i  ][COLUMNS_PER_MPI_PROCESS - 2]) / 3.0;
+				my_temperature_change = fmax(fabs(temperatures[i][COLUMNS_PER_MPI_PROCESS - 1] - temperatures_last[i][COLUMNS_PER_MPI_PROCESS - 1]), my_temperature_change);
 			}
 		}
 
-		///////////////////////////////////////////////////////
-		// -- SUBTASK 3: CALCULATE MAX TEMPERATURE CHANGE -- //
-		///////////////////////////////////////////////////////
-		my_temperature_change = 0.0;
-		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
+		///////////////////////////////////
+		// -- SUBTASK 6: GET SNAPSHOT -- //
+		///////////////////////////////////
+		MPI_Request gather_request;
+		if(iteration_count % SNAPSHOT_INTERVAL == 0)
 		{
-			for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
-			{
-				my_temperature_change = fmax(fabs(temperatures[i][j] - temperatures_last[i][j]), my_temperature_change);
-			}
+			MPI_Igather(&temperatures[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, snapshot, ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_COMM_WORLD, &gather_request);
 		}
-	
+
 		//////////////////////////////////////////////////////////
 		// -- SUBTASK 4: FIND MAX TEMPERATURE CHANGE OVERALL -- //
 		//////////////////////////////////////////////////////////
-		if(my_rank != MASTER_PROCESS_RANK)
-		{
-			// Send my temperature delta to the master MPI process
-			MPI_Ssend(&my_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD);
-			
-			// Receive the total delta calculated by the MPI process based on all MPI processes delta
-			MPI_Recv(&global_temperature_change, 1, MPI_DOUBLE, MASTER_PROCESS_RANK, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		}
-		else
-		{
-			// Initialise the temperature change to mine
-			global_temperature_change = my_temperature_change;
-
-			// Pick highest temperature change observed
-			for(int j = 0; j < comm_size; j++)
-			{
-				if(j != my_rank)
-				{
-					double subtotal;
-					MPI_Recv(&subtotal, 1, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					if(subtotal > global_temperature_change)
-					{
-						global_temperature_change = subtotal;
-					}
-				}
-			}
-
-			// Send delta back to all MPI processes
-			for(int j = 0; j < comm_size; j++)
-			{
-				if(j != my_rank)
-				{
-					MPI_Ssend(&global_temperature_change, 1, MPI_DOUBLE, j, 0, MPI_COMM_WORLD);
-				}
-			}
-		}
+		MPI_Request allreduce_request;
+		MPI_Iallreduce(&my_temperature_change, &global_temperature_change, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, &allreduce_request);
 
 		//////////////////////////////////////////////////
 		// -- SUBTASK 5: UPDATE LAST ITERATION ARRAY -- //
 		//////////////////////////////////////////////////
+		#pragma omp parallel for
 		for(int i = 1; i <= ROWS_PER_MPI_PROCESS; i++)
 		{
 			for(int j = 0; j < COLUMNS_PER_MPI_PROCESS; j++)
@@ -259,38 +227,14 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		///////////////////////////////////
-		// -- SUBTASK 6: GET SNAPSHOT -- //
-		///////////////////////////////////
+		MPI_Wait(&allreduce_request, MPI_STATUS_IGNORE);
+
 		if(iteration_count % SNAPSHOT_INTERVAL == 0)
 		{
+			MPI_Wait(&gather_request, MPI_STATUS_IGNORE);
 			if(my_rank == MASTER_PROCESS_RANK)
 			{
-				for(int j = 0; j < comm_size; j++)
-				{
-					if(j == my_rank)
-					{
-						// Copy locally my own temperature array in the global one
-						for(int k = 0; k < ROWS_PER_MPI_PROCESS; k++)
-						{
-							for(int l = 0; l < COLUMNS_PER_MPI_PROCESS; l++)
-							{
-								snapshot[j * ROWS_PER_MPI_PROCESS + k][l] = temperatures[k + 1][l];
-							}
-						}
-					}
-					else
-					{
-						MPI_Recv(&snapshot[j * ROWS_PER_MPI_PROCESS][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					}
-				}
-
 				printf("Iteration %d: %.18f\n", iteration_count, global_temperature_change);
-			}
-			else
-			{
-				// Send my array to the master MPI process
-				MPI_Ssend(&temperatures[1][0], ROWS_PER_MPI_PROCESS * COLUMNS_PER_MPI_PROCESS, MPI_DOUBLE, MASTER_PROCESS_RANK, 0, MPI_COMM_WORLD); 
 			}
 		}
 
@@ -320,7 +264,7 @@ int main(int argc, char* argv[])
 	/////////////////////////////////////////
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
-		printf("The program took %.2f seconds in total and executed %d iterations.\n", total_time_so_far, iteration_count);
+		printf("The program took %5.2f seconds in total and executed %d iterations.\n", total_time_so_far, iteration_count);
 	}
 
 	MPI_Finalize();

@@ -1,0 +1,6 @@
+ Data acquisition complete.
+Iteration 0: 12.500000000000000000
+Iteration 25: .462081517722978674
+Iteration 50: .237572979390019867
+Iteration 75: .159232105679329550
+The program took 30.26 seconds in total and executed 83 iterations.

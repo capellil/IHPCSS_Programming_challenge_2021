@@ -318,7 +318,7 @@ int main(int argc, char* argv[])
 	/////////////////////////////////////////
 	if(my_rank == MASTER_PROCESS_RANK)
 	{
-		printf("The program took %5.2f seconds in total and executed %d iterations.\n", total_time_so_far, iteration_count);
+		printf("The program took %.2f seconds in total and executed %d iterations.\n", total_time_so_far, iteration_count);
 	}
 
 	MPI_Finalize();

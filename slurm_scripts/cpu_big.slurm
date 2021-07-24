@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=64
 #SBATCH --job-name=IHPCSS
-#SBATCH --output=report_%N_%j.txt
+#SBATCH --output=error.txt
 #SBATCH --error=error.txt
 #SBATCH --reservation=hybridIHPCSS
 
