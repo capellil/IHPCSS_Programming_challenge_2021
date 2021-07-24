@@ -13,7 +13,7 @@ You are taking part to the [International High-Performance Computing Summer Scho
   * [Verify](#verify)
 * [What kind of optimisations are not allowed?](#what-kind-of-optimisations-are-not-allowed)
 * [Send your solution to the competition](#send-your-solution-to-the-competition)
-* [Who do I talk to?](#who-do-i-talk-to)
+* [Whom do I talk to?](#whom-do-i-talk-to)
 * [Acknowledgments](#acknowledgments)
 
 ## What is the challenge? ##
@@ -112,7 +112,7 @@ If you want your solution to be assessed, send an email **by Wednesday 28th of J
 **Note**: there is no need to send the ```makefile``` / ```submit.sh``` scripts or else, send just the source file of the version you optimised. Your code will be compiled and run using the original ```makefile``` / ```submit.sh``` scripts provided, on the ```big``` grid. This way, every participant has their code compiled & run in strictly identical conditions.
 
 [Go back to table of contents](#table-of-contents)
-## Who do I talk to? ##
+## Whom do I talk to? ##
 
 Me or any of the IHPCSS staff. You can find me and my email address in the slack channel called "Programming challenge". (Click on the link posted in the general slack channel about the programming challenge, it will take you to the programming challenge channel so you can join.)
 
