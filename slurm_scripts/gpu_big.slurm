@@ -13,7 +13,7 @@
 # OpenMP placement
 export OMP_NUM_THREADS=1
 export OMP_PROC_BIND=true
-export OMP_PLACES=cores
+export OMP_PLACES=sockets
 
 # Run the binary
 module load nvhpc
