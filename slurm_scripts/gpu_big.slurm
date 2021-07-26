@@ -16,5 +16,5 @@ export OMP_PROC_BIND=true
 export OMP_PLACES=sockets
 
 # Run the binary
-module load nvhpc
+module load nvhpc/21.2
 mpirun -np ${SLURM_NTASKS} --map-by socket -bind-to socket -report-bindings ./bin/${1}/gpu_big > $2
