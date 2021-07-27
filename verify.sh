@@ -129,7 +129,7 @@ iterations_to_verify_achieved=`cat $4 | grep "iterations" | cut -d ' ' -f 10`;
 
 iteration=0
 for i in ${!iterations_to_verify[@]}; do
-	if [ ${i} -gt ${reference_iterations_count} ]; then
+	if [ ${iteration} -gt ${reference_iterations_count} ]; then
 		echo_success "Your version ran more iterations than the reference; keep in mind that the extra iterations your program has run could not be checked against the reference. Please inform the programming challenge organiser to provide longer reference files."
 		break;
 	fi
