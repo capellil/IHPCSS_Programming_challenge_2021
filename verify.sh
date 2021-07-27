@@ -129,7 +129,7 @@ iterations_to_verify_achieved=`cat $4 | grep "iterations" | cut -d ' ' -f 10`;
 
 iteration=0
 for i in ${!iterations_to_verify[@]}; do
-	if [ ${i} -gt ${reference_iterations_count} ]; then
+	if [ ${i} -ge ${reference_iterations_count} ]; then
 		echo_success "Your version ran more iterations than the reference; keep in mind that the extra iterations your program has run could not be checked against the reference. However, iterations are compared with an accuracy to the 18th decimal, it is therefore unlikely your code matches the reference output perfectly and all of a suddent turns out to be completely incorrect for the following iterations; the inaccuracy in the temperature change caused by an error in the code would have built up and become visible by then."
 		break;
 	fi
