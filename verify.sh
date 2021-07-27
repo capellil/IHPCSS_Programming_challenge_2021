@@ -121,6 +121,9 @@ reference_iteration_achieved=`cat ${reference_file} | grep "iterations" | cut -d
 
 iterations_to_verify_string=`cat $4 | grep "Iteration" | cut -d ' ' -f 3`;
 iterations_to_verify=($iterations_to_verify_string)
+if [ ! "${iterations_to_verify_string}" ]; then
+	echo_failure "No iteration found in your file \"${reference_file}\"."
+fi
 iterations_to_verify_count=${#reference_iterations[@]}
 iterations_to_verify_achieved=`cat $4 | grep "iterations" | cut -d ' ' -f 10`;
 
